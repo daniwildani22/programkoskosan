@@ -27,3 +27,9 @@
 .kms-badge-secondary {
   @apply bg-slate-100 text-slate-600 border border-slate-200;
 }
+
+
+/* Smooth scrolling on mobile touch devices for tables */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+}

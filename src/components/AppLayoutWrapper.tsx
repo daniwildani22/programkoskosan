@@ -3,6 +3,7 @@
 import React from 'react';
 import { usePathname } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/context/AuthContext';
+import { NavProvider } from '@/context/NavContext';
 import Sidebar from '@/components/Sidebar';
 
 function LayoutContent({ children }: { children: React.ReactNode }) {
@@ -10,7 +11,7 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
   const { currentUser, loading } = useAuth();
   const isLoginPage = pathname === '/login';
 
-  // Jika di halaman login, tampilkan layar penuh tanpa sidebar
+  // Jika di halaman login, tampilkan layar penuh tanpa sidebar dan tanpa padding
   if (isLoginPage) {
     return <main className="w-full min-h-screen">{children}</main>;
   }
@@ -25,16 +26,19 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // Jika belum login, jangan render layout utama (akan dialihkan oleh AuthContext)
+  // Jika belum login, jangan render layout utama (akan dialihkan oleh AuthContext ke /login)
   if (!currentUser) {
     return null;
   }
 
   return (
     <div className="flex min-h-screen w-full bg-[#f8fafc]">
+      {/* Sidebar: Desktop permanent di layar lebar, Drawer tersembunyi di HP */}
       <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
+
+      {/* Main Content Area: Mengisi 100% lebar layar di HP */}
+      <div className="flex-1 flex flex-col min-w-0 w-full">
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto w-full">
           {children}
         </main>
       </div>
@@ -45,7 +49,9 @@ function LayoutContent({ children }: { children: React.ReactNode }) {
 export default function AppLayoutWrapper({ children }: { children: React.ReactNode }) {
   return (
     <AuthProvider>
-      <LayoutContent>{children}</LayoutContent>
+      <NavProvider>
+        <LayoutContent>{children}</LayoutContent>
+      </NavProvider>
     </AuthProvider>
   );
 }
