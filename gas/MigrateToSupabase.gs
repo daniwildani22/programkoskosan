@@ -316,7 +316,7 @@ function migrateTable(sheetName, supabaseTableName, transformFn) {
 
     if (cleanRecords.length === 0) return 0;
 
-    var url = SUPABASE_MIGRATION_CONFIG.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/" + supabaseTableName;
+    var url = SUPABASE_MIGRATION_CONFIG.SUPABASE_URL.replace(/\/$/, "") + "/rest/v1/" + supabaseTableName + "?on_conflict=id";
     var options = {
       method: "post",
       headers: {
