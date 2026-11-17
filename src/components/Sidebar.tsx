@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { 
   Building2, 
   LayoutDashboard, 
@@ -15,11 +16,13 @@ import {
   Wallet, 
   ShieldCheck, 
   Wrench, 
-  Settings 
+  Settings,
+  LogOut
 } from 'lucide-react';
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { logout } = useAuth();
 
   const navItems = [
     { label: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -35,6 +38,12 @@ export default function Sidebar() {
     { label: 'Keluhan & Perawatan', href: '/maintenance', icon: Wrench },
     { label: 'Pengaturan', href: '/settings', icon: Settings },
   ];
+
+  function handleLogout() {
+    if (confirm('Apakah Anda yakin ingin keluar dari sistem?')) {
+      logout();
+    }
+  }
 
   return (
     <aside className="w-64 bg-[#064e3b] text-white flex flex-col min-h-screen shrink-0 shadow-xl">
@@ -73,6 +82,17 @@ export default function Sidebar() {
           );
         })}
       </nav>
+
+      {/* Tombol Logout Sidebar */}
+      <div className="px-3 pb-3">
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-sm text-rose-200 hover:bg-rose-900/40 hover:text-rose-100 transition-all border border-rose-500/20"
+        >
+          <LogOut className="w-4 h-4 text-rose-300" />
+          <span>Keluar (Logout)</span>
+        </button>
+      </div>
 
       {/* Footer System Status */}
       <div className="p-4 border-t border-emerald-900/60 text-xs text-emerald-300/70 flex items-center justify-between">

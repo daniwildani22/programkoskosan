@@ -1,6 +1,6 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import Sidebar from '@/components/Sidebar';
+import AppLayoutWrapper from '@/components/AppLayoutWrapper';
 
 export const metadata: Metadata = {
   title: 'Kos Management System - Finora Cloud',
@@ -14,13 +14,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="id">
-      <body className="flex min-h-screen bg-[#f8fafc]">
-        <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
-          <main className="flex-1 p-6 sm:p-8 overflow-y-auto">
-            {children}
-          </main>
-        </div>
+      <body className="min-h-screen bg-[#f8fafc]">
+        <AppLayoutWrapper>
+          {children}
+        </AppLayoutWrapper>
       </body>
     </html>
   );

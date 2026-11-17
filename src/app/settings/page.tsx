@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/context/AuthContext';
 import { User, Setting, CashBankAccount } from '@/types/database';
 import { 
   Settings, 
@@ -16,10 +17,14 @@ import {
   Shield, 
   MessageSquare,
   Lock,
-  Smartphone
+  KeyRound,
+  Smartphone,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 
 export default function SettingsPage() {
+  const { currentUser, updateUserPassword } = useAuth();
   const [activeTab, setActiveTab] = useState<'USERS' | 'NOTIF' | 'BANK'>('USERS');
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<Setting[]>([]);
@@ -31,12 +36,23 @@ export default function SettingsPage() {
   const [userModalOpen, setUserModalOpen] = useState(false);
   const [userForm, setUserForm] = useState({
     username: '',
+    password: '',
     full_name: '',
     email: '',
     role: 'ADMIN' as 'OWNER' | 'ADMIN' | 'STAFF',
     phone: '',
     status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE'
   });
+
+  // Password Modal State (Untuk Atur Password User Lain oleh Owner)
+  const [pwdModalOpen, setPwdModalOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [newPassword, setNewPassword] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
+
+  // Ganti Password Sendiri State
+  const [myNewPassword, setMyNewPassword] = useState('');
+  const [myPwdSuccess, setMyPwdSuccess] = useState(false);
 
   // Notif Form State
   const [notifForm, setNotifForm] = useState({
@@ -83,9 +99,12 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       const newId = 'USR_' + Date.now();
+      const initialPassword = userForm.password.trim() || 'admin123';
+
       const { error } = await supabase.from('users').insert([{
         id: newId,
         username: userForm.username.trim().toLowerCase(),
+        password_hash: initialPassword,
         full_name: userForm.full_name,
         email: userForm.email,
         role: userForm.role,
@@ -95,11 +114,57 @@ export default function SettingsPage() {
 
       if (error) throw error;
       setUserModalOpen(false);
-      setUserForm({ username: '', full_name: '', email: '', role: 'ADMIN', phone: '', status: 'ACTIVE' });
+      setUserForm({ username: '', password: '', full_name: '', email: '', role: 'ADMIN', phone: '', status: 'ACTIVE' });
       await loadData();
-      alert('Pengguna baru berhasil ditambahkan!');
+      alert(`Pengguna baru berhasil ditambahkan! Password awal: ${initialPassword}`);
     } catch (err: any) {
       alert('Gagal menambahkan user: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function handleOpenChangePassword(u: User) {
+    setSelectedUser(u);
+    setNewPassword('');
+    setShowPwd(false);
+    setPwdModalOpen(true);
+  }
+
+  async function handleSaveUserPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedUser || !newPassword.trim()) return;
+    setSaving(true);
+    try {
+      const res = await updateUserPassword(selectedUser.id, newPassword.trim());
+      if (res.success) {
+        alert(`Password untuk pengguna "${selectedUser.username}" berhasil diperbarui!`);
+        setPwdModalOpen(false);
+      } else {
+        alert('Gagal mengubah password: ' + res.message);
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveMyPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentUser || !myNewPassword.trim()) return;
+    setSaving(true);
+    try {
+      const res = await updateUserPassword(currentUser.id, myNewPassword.trim());
+      if (res.success) {
+        setMyPwdSuccess(true);
+        setMyNewPassword('');
+        setTimeout(() => setMyPwdSuccess(false), 4000);
+      } else {
+        alert('Gagal mengubah password: ' + res.message);
+      }
+    } catch (err: any) {
+      alert('Error: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -123,7 +188,7 @@ export default function SettingsPage() {
 
   return (
     <div className="space-y-6">
-      <Navbar title="Pengaturan Sistem & Pengguna" subtitle="Konfigurasi hak akses staf, nomor notifikasi WhatsApp, dan profil sistem" />
+      <Navbar title="Pengaturan Sistem & Pengguna" subtitle="Kelola hak akses akun, kata sandi pengguna, notifikasi WhatsApp, dan profil sistem" />
 
       {/* Tabs */}
       <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
@@ -133,7 +198,7 @@ export default function SettingsPage() {
             activeTab === 'USERS' ? 'bg-[#064e3b] text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
           }`}
         >
-          <Users className="w-4 h-4" /> Pengguna & Hak Akses
+          <Users className="w-4 h-4" /> Pengguna & Atur Password
         </button>
 
         <button
@@ -155,68 +220,123 @@ export default function SettingsPage() {
         </button>
       </div>
 
-      {/* TAB 1: USERS */}
+      {/* TAB 1: USERS & PASSWORD */}
       {activeTab === 'USERS' && (
-        <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800">Daftar Pengguna Sistem</h3>
-              <p className="text-xs text-slate-500">Kelola akun admin, staf kebersihan, dan hak akses pemilik</p>
+        <div className="space-y-6">
+          {/* Section: Ganti Password Akun Saya */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-[#064e3b] flex items-center justify-center shrink-0">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <div className="flex-1 max-w-xl">
+                <h3 className="text-base font-bold text-slate-800">Ganti Password Akun Saya</h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Anda sedang login sebagai <strong>{currentUser?.full_name || 'Owner'}</strong> (Username: <code>{currentUser?.username || 'admin'}</code>).
+                </p>
+
+                {myPwdSuccess && (
+                  <div className="mt-3 p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>Password Anda berhasil diperbarui! Gunakan password baru ini pada login berikutnya.</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleSaveMyPassword} className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                  <div className="relative flex-1">
+                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="password"
+                      required
+                      placeholder="Masukkan password baru Anda..."
+                      value={myNewPassword}
+                      onChange={(e) => setMyNewPassword(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={saving || !myNewPassword.trim()}
+                    className="px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-bold shadow-md transition disabled:opacity-50 shrink-0"
+                  >
+                    Simpan Password Saya
+                  </button>
+                </form>
+              </div>
             </div>
-            <button
-              onClick={() => setUserModalOpen(true)}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
-            >
-              <Plus className="w-4 h-4" /> Tambah Pengguna
-            </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
-                  <th className="py-4 px-6">Username</th>
-                  <th className="py-4 px-6">Nama Lengkap</th>
-                  <th className="py-4 px-6">Peran (Role)</th>
-                  <th className="py-4 px-6">Email / Telepon</th>
-                  <th className="py-4 px-6">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 text-sm">
-                {users.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      Belum ada pengguna tambahan. Akun utama: <strong>admin (Owner)</strong>
-                    </td>
+          {/* Section: Daftar Semua Pengguna & Tombol Atur Password */}
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Daftar Pengguna Sistem</h3>
+                <p className="text-xs text-slate-500">Kelola akun staf, hak akses, dan atur ulang kata sandi (password) masing-masing staf</p>
+              </div>
+              <button
+                onClick={() => setUserModalOpen(true)}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
+              >
+                <Plus className="w-4 h-4" /> Tambah Pengguna Baru
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                    <th className="py-4 px-6">Username</th>
+                    <th className="py-4 px-6">Nama Lengkap</th>
+                    <th className="py-4 px-6">Peran (Role)</th>
+                    <th className="py-4 px-6">Kontak</th>
+                    <th className="py-4 px-6">Status</th>
+                    <th className="py-4 px-6 text-right">Atur Password</th>
                   </tr>
-                ) : (
-                  users.map((u) => (
-                    <tr key={u.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-4 px-6 font-mono font-bold text-slate-900">{u.username}</td>
-                      <td className="py-4 px-6 font-semibold text-slate-800">{u.full_name}</td>
-                      <td className="py-4 px-6">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
-                          u.role === 'OWNER' ? 'bg-black text-white' :
-                          u.role === 'ADMIN' ? 'bg-emerald-100 text-emerald-800' :
-                          'bg-blue-100 text-blue-800'
-                        }`}>
-                          <Shield className="w-3 h-3" /> {u.role}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-slate-600 text-xs">
-                        <div>{u.email || '-'}</div>
-                        <div>{u.phone || '-'}</div>
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-100 text-emerald-800">
-                          {u.status}
-                        </span>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-sm">
+                  {users.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                        Belum ada pengguna. Akun utama: <strong>admin (Owner)</strong>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    users.map((u) => (
+                      <tr key={u.id} className="hover:bg-slate-50/80 transition">
+                        <td className="py-4 px-6 font-mono font-bold text-slate-900">{u.username}</td>
+                        <td className="py-4 px-6 font-semibold text-slate-800">{u.full_name}</td>
+                        <td className="py-4 px-6">
+                          <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
+                            u.role === 'OWNER' ? 'bg-black text-white' :
+                            u.role === 'ADMIN' ? 'bg-emerald-100 text-emerald-800' :
+                            'bg-blue-100 text-blue-800'
+                          }`}>
+                            <Shield className="w-3 h-3" /> {u.role}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-slate-600 text-xs">
+                          <div>{u.email || '-'}</div>
+                          <div>{u.phone || '-'}</div>
+                        </td>
+                        <td className="py-4 px-6">
+                          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full uppercase bg-emerald-100 text-emerald-800">
+                            {u.status}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <button
+                            onClick={() => handleOpenChangePassword(u)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#064e3b] font-bold text-xs transition border border-emerald-200 shadow-sm"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" /> Atur Password
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -301,7 +421,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* Modal Tambah User */}
+      {/* Modal Tambah User Baru (Lengkap dengan Input Password) */}
       {userModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
@@ -322,6 +442,18 @@ export default function SettingsPage() {
                   onChange={(e) => setUserForm({ ...userForm, username: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-mono focus:outline-emerald-600"
                   placeholder="staf_budi"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Password Akun</label>
+                <input
+                  type="text"
+                  required
+                  value={userForm.password}
+                  onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-medium focus:outline-emerald-600"
+                  placeholder="Password awal (cth: rahasia123)"
                 />
               </div>
 
@@ -379,6 +511,57 @@ export default function SettingsPage() {
                 </button>
                 <button type="submit" disabled={saving} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md">
                   <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan User'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Atur Ulang Password Pengguna */}
+      {pwdModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-lg font-bold text-slate-800">Atur Password Pengguna</h3>
+                <p className="text-xs text-slate-400 font-mono">User: {selectedUser.username} ({selectedUser.full_name})</p>
+              </div>
+              <button onClick={() => setPwdModalOpen(false)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUserPassword} className="space-y-4 pt-4">
+              <div>
+                <label className="text-xs font-bold text-slate-700 mb-1.5 block">Password Baru</label>
+                <div className="relative">
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <input
+                    type={showPwd ? 'text' : 'password'}
+                    required
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Ketik password baru..."
+                    className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 font-medium"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+                  >
+                    {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">Pengguna akan langsung dapat login menggunakan password baru ini.</p>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+                <button type="button" onClick={() => setPwdModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50">
+                  Batal
+                </button>
+                <button type="submit" disabled={saving || !newPassword.trim()} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md">
+                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Password'}
                 </button>
               </div>
             </form>
