@@ -12,6 +12,7 @@ import {
   Phone, 
   Layers, 
   Edit3, 
+  Trash2, 
   RefreshCw, 
   CheckCircle2, 
   X,
@@ -138,6 +139,18 @@ export default function PropertiesPage() {
     }
   }
 
+  async function handleDelete(p: Property) {
+    if (!confirm(`Hapus properti "${p.property_code} - ${p.name}"?`)) return;
+    try {
+      const { error } = await supabase.from('properties').delete().eq('id', p.id);
+      if (error) throw error;
+      setProperties(properties.filter(item => item.id !== p.id));
+      alert(`Properti "${p.name}" berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus properti: ' + err.message);
+    }
+  }
+
   return (
     <div className="space-y-6">
       <Navbar title="Properti Kos" subtitle="Kelola bangunan rumah kos, alamat, dan kepemilikan aset" />
@@ -227,12 +240,21 @@ export default function PropertiesPage() {
 
                 <div className="pt-4 mt-4 border-t border-slate-100 flex items-center justify-between">
                   <span className="text-xs text-slate-400">Pemilik: <strong className="text-slate-700">{p.owner_name || 'Owner'}</strong></span>
-                  <button
-                    onClick={() => handleOpenModal(p)}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" /> Edit Properti
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenModal(p)}
+                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p)}
+                      className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
+                      title="Hapus Properti"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

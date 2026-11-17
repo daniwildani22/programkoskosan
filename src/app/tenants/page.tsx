@@ -13,6 +13,7 @@ import {
   DoorOpen, 
   StickyNote, 
   Edit3, 
+  Trash2, 
   RefreshCw, 
   Image as ImageIcon,
   CheckCircle2,
@@ -146,6 +147,30 @@ export default function TenantsPage() {
       alert('Gagal menyimpan penghuni: ' + err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleDelete(t: Tenant) {
+    const confirmMsg = `Apakah Anda yakin ingin menghapus data penghuni:\n"${t.full_name}" (${t.tenant_code})?\n\nSemua data kontrak, tagihan, dan riwayat pembayaran terkait penghuni ini akan ikut dihapus secara permanen.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // Hapus data terkait terlebih dahulu agar tidak memicu foreign key constraint violation
+      await supabase.from('payments').delete().eq('tenant_id', t.id);
+      await supabase.from('deposits').delete().eq('tenant_id', t.id);
+      await supabase.from('rent_bills').delete().eq('tenant_id', t.id);
+      await supabase.from('maintenance_tickets').delete().eq('tenant_id', t.id);
+      await supabase.from('contracts').delete().eq('tenant_id', t.id);
+
+      // Hapus data penghuni
+      const { error } = await supabase.from('tenants').delete().eq('id', t.id);
+      if (error) throw error;
+
+      // Update state tabel langsung
+      setTenants(prev => prev.filter(item => item.id !== t.id));
+      alert(`Data penghuni "${t.full_name}" berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus data penghuni: ' + err.message);
     }
   }
 
@@ -328,13 +353,22 @@ export default function TenantsPage() {
 
                       {/* AKSI */}
                       <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => openEditModal(t)}
-                          className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors shadow-sm"
-                          title="Edit Penghuni"
-                        >
-                          <Edit3 className="w-4 h-4" />
-                        </button>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(t)}
+                            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors shadow-sm"
+                            title="Edit Penghuni"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(t)}
+                            className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shadow-sm"
+                            title="Hapus Penghuni"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -452,21 +486,39 @@ export default function TenantsPage() {
                 ></textarea>
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-6 py-2.5 rounded-2xl bg-[#064e3b] text-white font-bold text-sm hover:bg-[#047857] shadow-md transition-all disabled:opacity-50"
-                >
-                  {saving ? 'Menyimpan...' : 'Simpan Penghuni'}
-                </button>
+              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+                {formData.id ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const t = tenants.find(item => item.id === formData.id);
+                      if (t) {
+                        setModalOpen(false);
+                        handleDelete(t);
+                      }
+                    }}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4" /> Hapus Penghuni
+                  </button>
+                ) : <div></div>}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setModalOpen(false)}
+                    className="px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="px-6 py-2.5 rounded-2xl bg-[#064e3b] text-white font-bold text-sm hover:bg-[#047857] shadow-md transition-all disabled:opacity-50"
+                  >
+                    {saving ? 'Menyimpan...' : 'Simpan Penghuni'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>

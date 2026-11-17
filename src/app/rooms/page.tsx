@@ -10,6 +10,7 @@ import {
   Plus, 
   Search, 
   Edit3, 
+  Trash2, 
   RefreshCw, 
   CheckCircle2, 
   X,
@@ -163,6 +164,18 @@ export default function RoomsPage() {
     }
   }
 
+  async function handleDelete(room: Room) {
+    if (!confirm(`Hapus kamar "${room.room_code} - ${room.name}"?`)) return;
+    try {
+      const { error } = await supabase.from('rooms').delete().eq('id', room.id);
+      if (error) throw error;
+      setRooms(rooms.filter(r => r.id !== room.id));
+      alert(`Kamar ${room.room_code} berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus kamar: ' + err.message);
+    }
+  }
+
   const filteredRooms = rooms.filter((r) => {
     const matchSearch = (r.room_code + ' ' + r.name + ' ' + (r.facilities || '')).toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || r.status === statusFilter;
@@ -307,12 +320,21 @@ export default function RoomsPage() {
                       </select>
                     </div>
 
-                    <button
-                      onClick={() => handleOpenModal(r)}
-                      className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" /> Edit
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleOpenModal(r)}
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" /> Edit
+                      </button>
+                      <button
+                        onClick={() => handleDelete(r)}
+                        className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
+                        title="Hapus Kamar"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
