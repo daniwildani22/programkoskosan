@@ -368,3 +368,21 @@ VALUES
     ('ACC_CASH_01', 'KAS-TUNAI', 'Kas Tunai Pengelola', 'CASH', 'Kas Operasional', '-', 'Pengelola Kos', 1000000, 1000000, 'ACTIVE'),
     ('ACC_BANK_01', 'BCA-OPS', 'Rekening BCA Operasional', 'BANK', 'Bank Central Asia (BCA)', '8720192831', 'H. Budiman', 5000000, 5000000, 'ACTIVE')
 ON CONFLICT (account_code) DO NOTHING;
+
+
+-- ============================================================================
+-- 8. SUPABASE STORAGE BUCKET UNTUK FOTO (PENGHUNI, KAMAR, PROPERTI)
+-- ============================================================================
+INSERT INTO storage.buckets (id, name, public) 
+VALUES ('kos-photos', 'kos-photos', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+-- Kebijakan Akses Storage Publik
+DROP POLICY IF EXISTS "Public View kos-photos" ON storage.objects;
+CREATE POLICY "Public View kos-photos" ON storage.objects FOR SELECT USING (bucket_id = 'kos-photos');
+
+DROP POLICY IF EXISTS "Public Upload kos-photos" ON storage.objects;
+CREATE POLICY "Public Upload kos-photos" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'kos-photos');
+
+DROP POLICY IF EXISTS "Public Update kos-photos" ON storage.objects;
+CREATE POLICY "Public Update kos-photos" ON storage.objects FOR UPDATE USING (bucket_id = 'kos-photos');
