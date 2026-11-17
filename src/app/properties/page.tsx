@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
+import ImageUpload from '@/components/ImageUpload';
 import { supabase } from '@/lib/supabase';
 import { Property } from '@/types/database';
 import { 
@@ -327,16 +328,13 @@ export default function PropertiesPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-600 mb-1 block">URL Foto Bangunan</label>
-                <input
-                  type="text"
-                  value={formData.photo_url}
-                  onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
-                  placeholder="https://..."
-                />
-              </div>
+              <ImageUpload
+                label="Foto Bangunan Kos"
+                value={formData.photo_url}
+                onChange={(url) => setFormData({ ...formData, photo_url: url })}
+                folder="properties"
+                aspectRatio="video"
+              />
 
               <div>
                 <label className="text-xs font-bold text-slate-600 mb-1 block">Keterangan Tambahan</label>

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
+import ImageUpload from '@/components/ImageUpload';
 import { supabase } from '@/lib/supabase';
 import { Tenant } from '@/types/database';
 import { 
@@ -397,16 +398,13 @@ export default function TenantsPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">URL Foto Profil</label>
-                <input
-                  type="url"
-                  placeholder="https://... atau biarkan kosong untuk avatar default"
-                  value={formData.photo_url}
-                  onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
-              </div>
+              <ImageUpload
+                label="Foto Profil Penghuni"
+                value={formData.photo_url}
+                onChange={(url) => setFormData({ ...formData, photo_url: url })}
+                folder="tenants"
+                aspectRatio="square"
+              />
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
