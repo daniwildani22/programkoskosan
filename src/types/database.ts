@@ -6,6 +6,19 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export interface User {
+  id: string;
+  username: string;
+  email?: string;
+  full_name: string;
+  role: 'OWNER' | 'ADMIN' | 'STAFF';
+  phone?: string;
+  status: 'ACTIVE' | 'INACTIVE';
+  last_login?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Property {
   id: string;
   property_code: string;
@@ -175,6 +188,69 @@ export interface Expense {
   status: 'PAID' | 'CANCELLED';
   created_at: string;
   updated_at: string;
+}
+
+export interface Deposit {
+  id: string;
+  deposit_number: string;
+  contract_id?: string;
+  tenant_id: string;
+  room_id?: string;
+  property_id?: string;
+  received_date: string;
+  deposit_amount: number;
+  account_id?: string;
+  status: 'HELD' | 'REFUNDED' | 'PARTIALLY_REFUNDED' | 'DEDUCTED';
+  deduction_amount: number;
+  deduction_reason?: string;
+  refund_amount: number;
+  refund_date?: string;
+  refund_account_id?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  tenant?: Tenant;
+  room?: Room;
+}
+
+export interface MaintenanceTicket {
+  id: string;
+  ticket_number: string;
+  tenant_id?: string;
+  room_id?: string;
+  property_id?: string;
+  category: string;
+  issue_description: string;
+  photo_url?: string;
+  report_date: string;
+  assigned_to?: string;
+  estimated_cost: number;
+  actual_cost: number;
+  status: 'BARU' | 'DIPROSES' | 'MENUNGGU_SPAREPART' | 'SELESAI' | 'DIBATALKAN';
+  resolution_notes?: string;
+  completion_date?: string;
+  created_at: string;
+  updated_at: string;
+  tenant?: Tenant;
+  room?: Room;
+}
+
+export interface MeterReading {
+  id: string;
+  room_id: string;
+  property_id?: string;
+  reading_date: string;
+  utility_type: 'ELECTRICITY' | 'WATER';
+  previous_meter: number;
+  current_meter: number;
+  usage_amount: number;
+  rate_per_unit: number;
+  total_cost: number;
+  recorded_by?: string;
+  meter_photo_url?: string;
+  notes?: string;
+  created_at: string;
+  room?: Room;
 }
 
 export interface Setting {
