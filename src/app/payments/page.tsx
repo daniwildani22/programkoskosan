@@ -6,7 +6,6 @@ import { supabase, formatRupiah, formatDateDisplay } from '@/lib/supabase';
 import { RentBill, Payment, CashBankAccount } from '@/types/database';
 import { 
   Receipt, 
-  Plus, 
   Search, 
   CheckCircle2, 
   Clock, 
@@ -14,7 +13,14 @@ import {
   RefreshCw, 
   X, 
   CreditCard,
-  Printer
+  Printer,
+  MessageSquare,
+  AlertTriangle,
+  Building2,
+  Share2,
+  Calendar,
+  Check,
+  Send
 } from 'lucide-react';
 
 export default function PaymentsPage() {
@@ -25,6 +31,7 @@ export default function PaymentsPage() {
   const [activeTab, setActiveTab] = useState<'BILLS' | 'PAYMENTS'>('BILLS');
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [dueDateAlertOnly, setDueDateAlertOnly] = useState(false);
 
   // Modal Bayar
   const [modalOpen, setModalOpen] = useState(false);
@@ -39,6 +46,14 @@ export default function PaymentsPage() {
     received_by: 'Owner / Administrator'
   });
 
+  // Modal Cetak Struk / Kuitansi
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [receiptData, setReceiptData] = useState<{
+    bill?: RentBill;
+    payment?: Payment;
+    isPaid: boolean;
+  } | null>(null);
+
   async function loadData() {
     setLoading(true);
     try {
@@ -48,7 +63,7 @@ export default function PaymentsPage() {
         { data: aData }
       ] = await Promise.all([
         supabase.from('rent_bills').select('*, tenant:tenants(*), room:rooms(*)').order('due_date', { ascending: false }),
-        supabase.from('payments').select('*, account:cash_bank_accounts(*)').order('payment_date', { ascending: false }),
+        supabase.from('payments').select('*, account:cash_bank_accounts(*), tenant:tenants(*), room:rooms(*)').order('payment_date', { ascending: false }),
         supabase.from('cash_bank_accounts').select('*').eq('status', 'ACTIVE').order('account_name', { ascending: true })
       ]);
 
@@ -58,7 +73,7 @@ export default function PaymentsPage() {
       setPayments(pData || []);
       setAccounts(aData || []);
     } catch (err: any) {
-      alert('Gagal memuat tagihan: ' + err.message);
+      alert('Gagal memuat data transaksi: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -68,6 +83,144 @@ export default function PaymentsPage() {
     loadData();
   }, []);
 
+  // Format nomor WhatsApp (mengubah 08... menjadi 628...)
+  function cleanWaPhone(phone?: string) {
+    if (!phone) return '';
+    const num = phone.replace(/[^0-9]/g, '');
+    if (num.startsWith('0')) return '62' + num.substring(1);
+    return num;
+  }
+
+  // Kalkulasi Status Jatuh Tempo
+  function getDueDateStatus(dueDateStr: string, status: string) {
+    if (status === 'PAID') {
+      return { type: 'PAID', label: 'Lunas', days: 0, badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-200' };
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(dueDateStr);
+    due.setHours(0, 0, 0, 0);
+
+    const diffTime = due.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return { 
+        type: 'OVERDUE', 
+        label: `Terlambat ${Math.abs(diffDays)} Hari`, 
+        days: diffDays, 
+        badgeClass: 'bg-rose-100 text-rose-800 border-rose-300 font-bold' 
+      };
+    } else if (diffDays === 0) {
+      return { 
+        type: 'TODAY', 
+        label: 'JATUH TEMPO HARI INI', 
+        days: 0, 
+        badgeClass: 'bg-rose-600 text-white font-extrabold animate-pulse' 
+      };
+    } else if (diffDays <= 3) {
+      return { 
+        type: 'SOON', 
+        label: `${diffDays} Hari Lagi`, 
+        days: diffDays, 
+        badgeClass: 'bg-amber-100 text-amber-900 border-amber-300 font-bold' 
+      };
+    } else {
+      return { 
+        type: 'NORMAL', 
+        label: formatDateDisplay(dueDateStr), 
+        days: diffDays, 
+        badgeClass: 'bg-slate-100 text-slate-700' 
+      };
+    }
+  }
+
+  // Generate Info Rekening Bank untuk Pesan WhatsApp
+  function getBankAccountsText() {
+    if (!accounts || accounts.length === 0) return 'Silakan hubungi pemilik kos untuk nomor rekening transfer.';
+    return accounts.map(a => `• *${a.bank_name}*: \`${a.account_number}\` a.n ${a.holder_name}`).join('\n');
+  }
+
+  // 1. KIRIM STRUK TAGIHAN / PENGINGAT JATUH TEMPO VIA WA
+  function sendWaInvoiceReminder(b: RentBill) {
+    const phone = cleanWaPhone(b.tenant?.phone);
+    if (!phone) {
+      alert('Nomor WhatsApp penghuni belum tercatat.');
+      return;
+    }
+
+    const dueStatus = getDueDateStatus(b.due_date, b.status);
+    const isOverdue = dueStatus.type === 'OVERDUE';
+    const isToday = dueStatus.type === 'TODAY';
+
+    let headerNote = 'PEMBERITAHUAN TAGIHAN SEWA KOS';
+    if (isOverdue) headerNote = '⚠️ PENGINGAT TUNGGAKAN JATUH TEMPO SEWA KOS';
+    if (isToday) headerNote = '⏰ PENGINGAT JATUH TEMPO SEWA KOS (HARI INI)';
+
+    const msg = `*${headerNote}*
+Halo *${b.tenant?.full_name || 'Penghuni'}*,
+Semoga dalam keadaan sehat selalu.
+
+Berikut kami sampaikan rincian tagihan sewa kos Anda:
+📄 *No. Invoice:* ${b.bill_number}
+🚪 *Kamar:* ${b.room?.room_code || '-'}
+🗓️ *Periode:* ${b.period_name}
+💰 *Total Tagihan:* ${formatRupiah(b.total_amount)}
+⚠️ *Sisa Pembayaran:* ${formatRupiah(b.remaining_amount || b.total_amount)}
+⏰ *Jatuh Tempo:* ${formatDateDisplay(b.due_date)} (${dueStatus.label})
+
+*Rekening Pembayaran Resmi:*
+${getBankAccountsText()}
+
+Mohon untuk segera melakukan transfer pembayaran dan konfirmasikan bukti transfer melalui chat ini.
+Terima kasih atas kerja samanya! 🙏
+_Manajemen Kos Finora_`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  // 2. KIRIM STRUK PELUNASAN / KUITANSI RESMI VIA WA
+  function sendWaReceipt(b: RentBill) {
+    const phone = cleanWaPhone(b.tenant?.phone);
+    if (!phone) {
+      alert('Nomor WhatsApp penghuni belum tercatat.');
+      return;
+    }
+
+    const msg = `*KUITANSI RESMI PEMBAYARAN SEWA KOS*
+STATUS: ✅ *LUNAS (PAID)*
+
+Terima kasih, pembayaran sewa kos Anda telah kami terima dan diverifikasi secara sah:
+📄 *No. Invoice / Kuitansi:* ${b.bill_number}
+👤 *Nama Penghuni:* ${b.tenant?.full_name || '-'}
+🚪 *Kamar:* ${b.room?.room_code || '-'}
+🗓️ *Periode Sewa:* ${b.period_name}
+💵 *Nominal Dilunasi:* ${formatRupiah(b.total_amount)}
+📅 *Status:* Tuntas / Lunas
+
+Semoga betah dan nyaman tinggal di kos kami!
+Jika membutuhkan bantuan fasilitas atau keluhan kamar, silakan hubungi pengelola.
+Terima kasih! 🙏
+_Manajemen Kos Finora_`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  // Buka Modal Cetak Struk
+  function openReceiptModal(b: RentBill) {
+    setReceiptData({
+      bill: b,
+      isPaid: b.status === 'PAID'
+    });
+    setReceiptModalOpen(true);
+  }
+
+  function handlePrintReceipt() {
+    window.print();
+  }
+
+  // Handler Buka Modal Bayar
   function handleOpenPayModal(bill: RentBill) {
     setSelectedBill(bill);
     setPayForm({
@@ -81,6 +234,7 @@ export default function PaymentsPage() {
     setModalOpen(true);
   }
 
+  // Handler Simpan Bayar
   async function handlePaySubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!selectedBill) return;
@@ -134,6 +288,7 @@ export default function PaymentsPage() {
 
       setModalOpen(false);
       await loadData();
+      alert('Pembayaran berhasil dicatat!');
     } catch (err: any) {
       alert('Gagal mencatat pembayaran: ' + err.message);
     } finally {
@@ -141,24 +296,68 @@ export default function PaymentsPage() {
     }
   }
 
+  // Hitung jumlah tagihan terlambat / mendekati jatuh tempo
+  const urgentBills = bills.filter(b => {
+    if (b.status === 'PAID') return false;
+    const st = getDueDateStatus(b.due_date, b.status);
+    return st.type === 'OVERDUE' || st.type === 'TODAY' || st.type === 'SOON';
+  });
+
   const filteredBills = bills.filter((b) => {
     const tName = b.tenant?.full_name || '';
     const num = b.bill_number || '';
     const matchSearch = (tName + ' ' + num + ' ' + b.period_name).toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || b.status === statusFilter;
+
+    if (dueDateAlertOnly) {
+      if (b.status === 'PAID') return false;
+      const st = getDueDateStatus(b.due_date, b.status);
+      return matchSearch && (st.type === 'OVERDUE' || st.type === 'TODAY' || st.type === 'SOON');
+    }
+
     return matchSearch && matchStatus;
   });
 
   return (
     <div className="space-y-6">
-      <Navbar title="Tagihan & Pembayaran" subtitle="Kelola surat tagihan sewa kamar, penerimaan transfer, dan kuitansi" />
+      <Navbar title="Tagihan & Pembayaran" subtitle="Kirim struk tagihan & pelunasan WhatsApp, cetak kuitansi resmi, dan pantau jatuh tempo" />
+
+      {/* PENGINGAT JATUH TEMPO BANNER */}
+      {urgentBills.length > 0 && activeTab === 'BILLS' && (
+        <div className="p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
+              <AlertTriangle className="w-5 h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="font-bold text-sm text-amber-950">
+                Perhatian: Terdapat {urgentBills.length} Tagihan Mendekati / Melewati Jatuh Tempo!
+              </h4>
+              <p className="text-xs text-amber-800/90 mt-0.5">
+                Kirimkan pengingat tagihan langsung ke nomor WhatsApp penghuni dengan sekali klik.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => setDueDateAlertOnly(!dueDateAlertOnly)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm shrink-0 ${
+              dueDateAlertOnly 
+                ? 'bg-amber-700 text-white' 
+                : 'bg-white text-amber-900 border border-amber-300 hover:bg-amber-100'
+            }`}
+          >
+            {dueDateAlertOnly ? 'Tampilkan Semua Tagihan' : `Filter ${urgentBills.length} Tagihan Kritis`}
+          </button>
+        </div>
+      )}
 
       {/* Action Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
         {/* Tab Buttons */}
         <div className="flex items-center gap-2 p-1 bg-slate-100 rounded-xl">
           <button
-            onClick={() => setActiveTab('BILLS')}
+            onClick={() => { setActiveTab('BILLS'); setDueDateAlertOnly(false); }}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
               activeTab === 'BILLS' ? 'bg-[#064e3b] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
@@ -166,7 +365,7 @@ export default function PaymentsPage() {
             Daftar Tagihan ({bills.length})
           </button>
           <button
-            onClick={() => setActiveTab('PAYMENTS')}
+            onClick={() => { setActiveTab('PAYMENTS'); setDueDateAlertOnly(false); }}
             className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
               activeTab === 'PAYMENTS' ? 'bg-[#064e3b] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
             }`}
@@ -199,7 +398,7 @@ export default function PaymentsPage() {
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content Table */}
       <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 text-center text-slate-400">
@@ -222,64 +421,125 @@ export default function PaymentsPage() {
                     <th className="py-4 px-6">Periode</th>
                     <th className="py-4 px-6">Jatuh Tempo</th>
                     <th className="py-4 px-6">Total Tagihan</th>
-                    <th className="py-4 px-6">Sisa Bayar</th>
+                    <th className="py-4 px-6">Sisa Tagihan</th>
                     <th className="py-4 px-6">Status</th>
-                    <th className="py-4 px-6 text-right">Aksi</th>
+                    <th className="py-4 px-6 text-right">Aksi & Struk</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
-                  {filteredBills.map((b) => (
-                    <tr key={b.id} className="hover:bg-slate-50/80 transition">
-                      <td className="py-4 px-6 font-mono font-bold text-slate-800">
-                        {b.bill_number}
-                      </td>
-                      <td className="py-4 px-6 font-semibold text-slate-900">
-                        <div>{b.tenant?.full_name || 'Penghuni'}</div>
-                        <div className="text-xs text-slate-400 font-normal">{b.room?.room_code || 'Kamar'}</div>
-                      </td>
-                      <td className="py-4 px-6 text-slate-600 text-xs">
-                        {b.period_name}
-                      </td>
-                      <td className="py-4 px-6 text-slate-600 text-xs">
-                        {formatDateDisplay(b.due_date)}
-                      </td>
-                      <td className="py-4 px-6 font-bold text-slate-900">
-                        {formatRupiah(b.total_amount)}
-                      </td>
-                      <td className="py-4 px-6 font-bold text-rose-600">
-                        {Number(b.remaining_amount) > 0 ? formatRupiah(b.remaining_amount) : <span className="text-emerald-600">Lunas</span>}
-                      </td>
-                      <td className="py-4 px-6">
-                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
-                          b.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
-                          b.status === 'PARTIAL' ? 'bg-amber-100 text-amber-800' :
-                          'bg-rose-100 text-rose-800'
-                        }`}>
-                          {b.status === 'PAID' ? 'LUNAS' : b.status === 'PARTIAL' ? 'SEBAGIAN' : 'BELUM BAYAR'}
-                        </span>
-                      </td>
-                      <td className="py-4 px-6 text-right">
-                        {b.status !== 'PAID' ? (
-                          <button
-                            onClick={() => handleOpenPayModal(b)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-bold transition shadow-sm"
-                          >
-                            <CreditCard className="w-3.5 h-3.5" /> Catat Bayar
-                          </button>
-                        ) : (
-                          <span className="text-xs text-emerald-600 font-bold inline-flex items-center gap-1">
-                            <CheckCircle2 className="w-4 h-4" /> Selesai
+                  {filteredBills.map((b) => {
+                    const dueInfo = getDueDateStatus(b.due_date, b.status);
+
+                    return (
+                      <tr key={b.id} className="hover:bg-slate-50/80 transition">
+                        {/* No. Invoice */}
+                        <td className="py-4 px-6 font-mono font-bold text-slate-800">
+                          {b.bill_number}
+                        </td>
+
+                        {/* Penghuni & Kamar */}
+                        <td className="py-4 px-6 font-semibold text-slate-900">
+                          <div>{b.tenant?.full_name || 'Penghuni'}</div>
+                          <div className="text-xs text-slate-400 font-normal">
+                            Kamar: <strong>{b.room?.room_code || '-'}</strong>
+                          </div>
+                        </td>
+
+                        {/* Periode */}
+                        <td className="py-4 px-6 text-slate-600 text-xs">
+                          {b.period_name}
+                        </td>
+
+                        {/* Jatuh Tempo & Pengingat */}
+                        <td className="py-4 px-6 text-xs">
+                          <div className="font-medium text-slate-700">{formatDateDisplay(b.due_date)}</div>
+                          <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${dueInfo.badgeClass}`}>
+                            {dueInfo.label}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+
+                        {/* Total Tagihan */}
+                        <td className="py-4 px-6 font-bold text-slate-900">
+                          {formatRupiah(b.total_amount)}
+                        </td>
+
+                        {/* Sisa Bayar */}
+                        <td className="py-4 px-6 font-bold text-rose-600">
+                          {Number(b.remaining_amount) > 0 ? (
+                            formatRupiah(b.remaining_amount)
+                          ) : (
+                            <span className="text-emerald-600 font-semibold flex items-center gap-1">
+                              <Check className="w-4 h-4" /> Lunas
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-4 px-6">
+                          <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
+                            b.status === 'PAID' ? 'bg-emerald-100 text-emerald-800' :
+                            b.status === 'PARTIAL' ? 'bg-amber-100 text-amber-800' :
+                            'bg-rose-100 text-rose-800'
+                          }`}>
+                            {b.status === 'PAID' ? 'LUNAS' : b.status === 'PARTIAL' ? 'SEBAGIAN' : 'BELUM BAYAR'}
+                          </span>
+                        </td>
+
+                        {/* AKSI & STRUK */}
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                            {/* Tombol Kirim WhatsApp */}
+                            {b.status === 'PAID' ? (
+                              <button
+                                onClick={() => sendWaReceipt(b)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition"
+                                title="Kirim Struk Pelunasan WA ke Penghuni"
+                              >
+                                <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="hidden sm:inline">Kirim Pelunasan (WA)</span>
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => sendWaInvoiceReminder(b)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition"
+                                title="Kirim Tagihan / Pengingat Jatuh Tempo via WA"
+                              >
+                                <Send className="w-3.5 h-3.5 text-emerald-600" />
+                                <span className="hidden sm:inline">Kirim Tagihan (WA)</span>
+                              </button>
+                            )}
+
+                            {/* Tombol Cetak Struk / Kuitansi Resmi */}
+                            <button
+                              onClick={() => openReceiptModal(b)}
+                              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition flex items-center gap-1"
+                              title="Cetak Struk / Kuitansi Resmi"
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Cetak</span>
+                            </button>
+
+                            {/* Tombol Catat Bayar */}
+                            {b.status !== 'PAID' && (
+                              <button
+                                onClick={() => handleOpenPayModal(b)}
+                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-bold transition shadow-sm"
+                              >
+                                <CreditCard className="w-3.5 h-3.5" />
+                                <span>Bayar</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
           )
         ) : (
-          /* TAB PAYMENTS */
+          /* TAB PAYMENTS (RIWAYAT PEMBAYARAN) */
           payments.length === 0 ? (
             <div className="p-12 text-center text-slate-400">
               <CreditCard className="w-12 h-12 mx-auto mb-3 text-slate-300" />
@@ -294,9 +554,9 @@ export default function PaymentsPage() {
                     <th className="py-4 px-6">Tanggal</th>
                     <th className="py-4 px-6">Nominal Masuk</th>
                     <th className="py-4 px-6">Metode</th>
-                    <th className="py-4 px-6">Rekening Kas/Bank</th>
+                    <th className="py-4 px-6">Rekening Tujuan</th>
                     <th className="py-4 px-6">Diterima Oleh</th>
-                    <th className="py-4 px-6">Catatan</th>
+                    <th className="py-4 px-6 text-right">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-sm">
@@ -322,8 +582,25 @@ export default function PaymentsPage() {
                       <td className="py-4 px-6 text-slate-600 text-xs">
                         {p.received_by || 'Admin'}
                       </td>
-                      <td className="py-4 px-6 text-slate-500 text-xs">
-                        {p.notes || '-'}
+                      <td className="py-4 px-6 text-right">
+                        <button
+                          onClick={() => {
+                            // Cetak kuitansi dari payment
+                            if (p.bill_id) {
+                              const relatedBill = bills.find(b => b.id === p.bill_id);
+                              if (relatedBill) {
+                                openReceiptModal(relatedBill);
+                                return;
+                              }
+                            }
+                            // Fallback jika pembayaran lepas
+                            alert(`Pembayaran ${p.payment_number} sebesar ${formatRupiah(p.amount)} berhasil diverifikasi.`);
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          <span>Cetak Kuitansi</span>
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -333,6 +610,186 @@ export default function PaymentsPage() {
           )
         )}
       </div>
+
+      {/* MODAL CETAK STRUK / KUITANSI RESMI (PRINT & PDF READY) */}
+      {receiptModalOpen && receiptData?.bill && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 my-8">
+            {/* Action Bar Modal */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-200 no-print">
+              <span className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
+                <Printer className="w-4 h-4 text-emerald-600" /> Pratinjau Cetak Struk Resmi
+              </span>
+              <button 
+                onClick={() => setReceiptModalOpen(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* AREA STRUK CETAK (PRINTABLE AREA) */}
+            <div id="printable-receipt-area" className="py-6 space-y-6 text-slate-800 font-sans">
+              {/* Header Struk */}
+              <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[#064e3b] text-white flex items-center justify-center font-bold text-xl shadow-md">
+                    <Building2 className="w-7 h-7" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-black text-slate-900 tracking-tight leading-tight">KOS GRAHA ASRI</h2>
+                    <p className="text-xs text-slate-500 font-medium">Finora Cloud Property Management</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Yogyakarta, Indonesia • WA: 0812-3456-7890</p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="text-base font-extrabold uppercase tracking-wider text-[#064e3b]">
+                    {receiptData.isPaid ? 'KUITANSI PELUNASAN' : 'SURAT TAGIHAN SEWA'}
+                  </div>
+                  <div className="text-xs font-mono font-bold text-slate-600 mt-1">
+                    {receiptData.bill.bill_number}
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Tanggal: {formatDateDisplay(new Date().toISOString())}
+                  </div>
+                </div>
+              </div>
+
+              {/* Data Penghuni & Kamar */}
+              <div className="grid grid-cols-2 gap-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <div>
+                  <span className="text-slate-400 block font-semibold">DITAGIHKAN KEPADA:</span>
+                  <div className="text-sm font-bold text-slate-900 mt-1">{receiptData.bill.tenant?.full_name || 'Penghuni'}</div>
+                  <div className="text-slate-600 mt-0.5">No. WA: {receiptData.bill.tenant?.phone || '-'}</div>
+                  <div className="text-slate-500 mt-0.5">NIK: {receiptData.bill.tenant?.id_card_number || '-'}</div>
+                </div>
+                <div>
+                  <span className="text-slate-400 block font-semibold">UNIT KAMAR & PERIODE:</span>
+                  <div className="text-sm font-bold text-slate-900 mt-1">Kamar {receiptData.bill.room?.room_code || '-'}</div>
+                  <div className="text-slate-600 mt-0.5">Periode: {receiptData.bill.period_name}</div>
+                  <div className="text-slate-500 mt-0.5">Jatuh Tempo: {formatDateDisplay(receiptData.bill.due_date)}</div>
+                </div>
+              </div>
+
+              {/* Rincian Biaya Tabel */}
+              <div className="border border-slate-200 rounded-2xl overflow-hidden">
+                <table className="w-full text-xs">
+                  <thead className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-4 text-left">Rincian Deskripsi</th>
+                      <th className="py-2.5 px-4 text-right">Jumlah</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    <tr>
+                      <td className="py-3 px-4 font-medium text-slate-800">
+                        Sewa Kamar ({receiptData.bill.period_name})
+                      </td>
+                      <td className="py-3 px-4 text-right font-bold text-slate-900">
+                        {formatRupiah(receiptData.bill.rent_amount || receiptData.bill.total_amount)}
+                      </td>
+                    </tr>
+                    {Number(receiptData.bill.other_charges) > 0 && (
+                      <tr>
+                        <td className="py-2.5 px-4 text-slate-600">Biaya Utilitas / Fasilitas Tambahan</td>
+                        <td className="py-2.5 px-4 text-right font-bold text-slate-900">
+                          {formatRupiah(receiptData.bill.other_charges)}
+                        </td>
+                      </tr>
+                    )}
+                    {Number(receiptData.bill.discount_amount) > 0 && (
+                      <tr>
+                        <td className="py-2.5 px-4 text-emerald-700 font-medium">Potongan / Diskon Sewa</td>
+                        <td className="py-2.5 px-4 text-right font-bold text-emerald-700">
+                          -{formatRupiah(receiptData.bill.discount_amount)}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                  <tfoot className="bg-slate-50 border-t border-slate-200 font-bold">
+                    <tr>
+                      <td className="py-3 px-4 text-slate-700 text-sm">TOTAL TAGIHAN</td>
+                      <td className="py-3 px-4 text-right text-base text-[#064e3b] font-black">
+                        {formatRupiah(receiptData.bill.total_amount)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 text-slate-600">Total Telah Dibayar</td>
+                      <td className="py-2.5 px-4 text-right text-emerald-700 font-bold">
+                        {formatRupiah(receiptData.bill.paid_amount || (receiptData.isPaid ? receiptData.bill.total_amount : 0))}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td className="py-2.5 px-4 text-slate-600">Sisa Tagihan</td>
+                      <td className="py-2.5 px-4 text-right text-rose-600 font-bold">
+                        {formatRupiah(receiptData.bill.remaining_amount || (receiptData.isPaid ? 0 : receiptData.bill.total_amount))}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+              {/* Status Stamp & Tanda Tangan */}
+              <div className="flex items-center justify-between pt-4 border-t border-slate-200">
+                {/* STEMPEL STATUS */}
+                <div className="flex items-center gap-3">
+                  {receiptData.isPaid ? (
+                    <div className="border-4 border-emerald-600 text-emerald-700 font-black text-lg px-4 py-1.5 rounded-xl uppercase tracking-widest transform -rotate-6 shadow-sm">
+                      ✓ LUNAS
+                    </div>
+                  ) : (
+                    <div className="border-4 border-amber-600 text-amber-700 font-black text-lg px-4 py-1.5 rounded-xl uppercase tracking-widest transform -rotate-6 shadow-sm">
+                      TAGIHAN
+                    </div>
+                  )}
+                  <div className="text-[10px] text-slate-400 max-w-[200px] leading-tight">
+                    Dokumen ini adalah bukti transaksi resmi yang diterbitkan secara sah oleh sistem Finora Cloud.
+                  </div>
+                </div>
+
+                {/* Tanda Tangan */}
+                <div className="text-center min-w-[150px]">
+                  <div className="text-[11px] text-slate-400">Pengelola Kos,</div>
+                  <div className="h-12 flex items-center justify-center">
+                    <span className="font-serif italic text-xs text-slate-400">Owner / Admin</span>
+                  </div>
+                  <div className="text-xs font-bold text-slate-900 border-t border-slate-400 pt-1">
+                    H. Budiman / Pengelola
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tombol Aksi Modal */}
+            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-6 border-t border-slate-100 no-print">
+              <button
+                type="button"
+                onClick={() => {
+                  if (receiptData.isPaid) {
+                    sendWaReceipt(receiptData.bill);
+                  } else {
+                    sendWaInvoiceReminder(receiptData.bill);
+                  }
+                }}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition"
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>Kirimkan ke WhatsApp Penghuni</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePrintReceipt}
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-bold text-xs shadow-md transition"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Cetak Struk (Print / Simpan PDF)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal Catat Bayar */}
       {modalOpen && selectedBill && (

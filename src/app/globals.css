@@ -33,3 +33,27 @@
 .overflow-x-auto {
   -webkit-overflow-scrolling: touch;
 }
+
+
+/* Print optimization for Receipts & Invoices */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  header, aside, nav, button, .no-print {
+    display: none !important;
+  }
+  #printable-receipt-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 20px !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+    display: block !important;
+  }
+}
