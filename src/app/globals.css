@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-[#f8fafc] text-slate-800 antialiased font-sans;
+  }
+}
+
+.kms-badge {
+  @apply px-2.5 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1;
+}
+
+.kms-badge-success {
+  @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+}
+
+.kms-badge-warning {
+  @apply bg-amber-50 text-amber-700 border border-amber-200;
+}
+
+.kms-badge-danger {
+  @apply bg-rose-50 text-rose-700 border border-rose-200;
+}
+
+.kms-badge-secondary {
+  @apply bg-slate-100 text-slate-600 border border-slate-200;
+}
