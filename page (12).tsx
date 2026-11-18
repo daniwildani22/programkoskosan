@@ -245,26 +245,46 @@ export default function UtilitiesPage() {
 
       {/* Modal Input Meteran */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">Catat Angka Meteran</h3>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <Gauge className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">Catat Angka Meteran</h3>
+                  <p className="text-[11px] text-slate-400">Pencatatan pemakaian listrik & air kamar</p>
+                </div>
+              </div>
+
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="utilityForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div>
                 <label className="text-xs font-bold text-slate-600 mb-1 block">Pilih Kamar</label>
                 <select
                   required
                   value={formData.room_id}
                   onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600 bg-white"
                 >
                   <option value="">-- Pilih Kamar --</option>
                   {rooms.map(r => (
@@ -273,7 +293,7 @@ export default function UtilitiesPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">Jenis Utilitas</label>
                   <select
@@ -286,25 +306,25 @@ export default function UtilitiesPage() {
                         rate_per_unit: type === 'ELECTRICITY' ? 1500 : 5000
                       });
                     }}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
                   >
                     <option value="ELECTRICITY">⚡ Listrik (kWh)</option>
                     <option value="WATER">💧 Air (m³)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">Tanggal Pencatatan</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Tanggal</label>
                   <input
                     type="date"
                     required
                     value={formData.reading_date}
                     onChange={(e) => setFormData({ ...formData, reading_date: e.target.value })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">Meter Awal (Lalu)</label>
                   <input
@@ -314,7 +334,7 @@ export default function UtilitiesPage() {
                     required
                     value={formData.previous_meter}
                     onChange={(e) => setFormData({ ...formData, previous_meter: Number(e.target.value) })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -326,7 +346,7 @@ export default function UtilitiesPage() {
                     required
                     value={formData.current_meter}
                     onChange={(e) => setFormData({ ...formData, current_meter: Number(e.target.value) })}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-900 focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -339,7 +359,7 @@ export default function UtilitiesPage() {
                   required
                   value={formData.rate_per_unit}
                   onChange={(e) => setFormData({ ...formData, rate_per_unit: Number(e.target.value) })}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                 />
               </div>
 
@@ -354,24 +374,26 @@ export default function UtilitiesPage() {
                   <span>{formatRupiah(Math.max(0, formData.current_meter - formData.previous_meter) * formData.rate_per_unit)}</span>
                 </div>
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Meteran'}
-                </button>
-              </div>
             </form>
+
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="utilityForm"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Meteran'}
+              </button>
+            </div>
           </div>
         </div>
       )}

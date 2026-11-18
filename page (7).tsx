@@ -81,6 +81,15 @@ export default function PaymentsPage() {
 
   useEffect(() => {
     loadData();
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setModalOpen(false);
+        setReceiptModalOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   // Format nomor WhatsApp (mengubah 08... menjadi 628...)
@@ -613,23 +622,33 @@ _Manajemen Kos Finora_`;
 
       {/* MODAL CETAK STRUK / KUITANSI RESMI (PRINT & PDF READY) */}
       {receiptModalOpen && receiptData?.bill && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-slate-200 my-8">
-            {/* Action Bar Modal */}
-            <div className="flex items-center justify-between pb-4 border-b border-slate-200 no-print">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setReceiptModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 flex flex-col max-h-[88vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Action Bar Modal (Sticky Header) */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-200 flex items-center justify-between shrink-0 bg-white z-10 no-print">
               <span className="font-bold text-sm text-slate-700 flex items-center gap-1.5">
                 <Printer className="w-4 h-4 text-emerald-600" /> Pratinjau Cetak Struk Resmi
               </span>
               <button 
+                type="button"
                 onClick={() => setReceiptModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            {/* AREA STRUK CETAK (PRINTABLE AREA) */}
-            <div id="printable-receipt-area" className="py-6 space-y-6 text-slate-800 font-sans">
+            {/* AREA STRUK CETAK (SCROLLABLE PRINTABLE AREA) */}
+            <div className="flex-1 overflow-y-auto p-5 sm:p-6 space-y-6 text-slate-800 font-sans">
+              <div id="printable-receipt-area" className="space-y-6">
               {/* Header Struk */}
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-5">
                 <div className="flex items-center gap-3">
@@ -761,31 +780,41 @@ _Manajemen Kos Finora_`;
               </div>
             </div>
 
-            {/* Tombol Aksi Modal */}
-            <div className="flex flex-col sm:flex-row items-center justify-end gap-3 pt-6 border-t border-slate-100 no-print">
+            {/* Tombol Aksi Modal (Sticky Footer) */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2.5 shrink-0 bg-slate-50/90 backdrop-blur-sm z-10 no-print">
               <button
                 type="button"
-                onClick={() => {
-                  if (receiptData.isPaid) {
-                    sendWaReceipt(receiptData.bill);
-                  } else {
-                    sendWaInvoiceReminder(receiptData.bill);
-                  }
-                }}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition"
+                onClick={() => setReceiptModalOpen(false)}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-white transition"
               >
-                <MessageSquare className="w-4 h-4 text-emerald-600" />
-                <span>Kirimkan ke WhatsApp Penghuni</span>
+                Tutup
               </button>
 
-              <button
-                type="button"
-                onClick={handlePrintReceipt}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-bold text-xs shadow-md transition"
-              >
-                <Printer className="w-4 h-4" />
-                <span>Cetak Struk (Print / Simpan PDF)</span>
-              </button>
+              <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (receiptData.isPaid) {
+                      sendWaReceipt(receiptData.bill);
+                    } else {
+                      sendWaInvoiceReminder(receiptData.bill);
+                    }
+                  }}
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition"
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Kirim ke WhatsApp</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePrintReceipt}
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-bold text-xs shadow-md transition"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Cetak Struk (PDF)</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -793,22 +822,33 @@ _Manajemen Kos Finora_`;
 
       {/* Modal Catat Bayar */}
       {modalOpen && selectedBill && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
               <div>
-                <h3 className="text-lg font-bold text-slate-800">Catat Pembayaran Sewa</h3>
-                <p className="text-xs text-slate-400 font-mono">{selectedBill.bill_number}</p>
+                <h3 className="text-base font-bold text-slate-800 leading-tight">Catat Pembayaran Sewa</h3>
+                <p className="text-[11px] text-slate-400 font-mono">{selectedBill.bill_number}</p>
               </div>
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handlePaySubmit} className="space-y-4 pt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="payForm" onSubmit={handlePaySubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-100 text-xs text-emerald-900">
                 <div>Penghuni: <strong>{selectedBill.tenant?.full_name || 'Penghuni'}</strong></div>
                 <div>Periode: <strong>{selectedBill.period_name}</strong></div>
@@ -823,7 +863,7 @@ _Manajemen Kos Finora_`;
                   min="1"
                   value={payForm.amount}
                   onChange={(e) => setPayForm({ ...payForm, amount: Number(e.target.value) })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-base font-extrabold text-[#064e3b] focus:outline-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-base font-extrabold text-[#064e3b] focus:outline-emerald-600"
                 />
               </div>
 
@@ -832,7 +872,7 @@ _Manajemen Kos Finora_`;
                 <select
                   value={payForm.payment_method}
                   onChange={(e) => setPayForm({ ...payForm, payment_method: e.target.value as any })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
                 >
                   <option value="TRANSFER_BANK">Transfer Bank</option>
                   <option value="TUNAI">Tunai / Cash</option>
@@ -846,7 +886,7 @@ _Manajemen Kos Finora_`;
                 <select
                   value={payForm.account_id}
                   onChange={(e) => setPayForm({ ...payForm, account_id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
                 >
                   <option value="">-- Pilih Rekening --</option>
                   {accounts.map(acc => (
@@ -864,7 +904,7 @@ _Manajemen Kos Finora_`;
                   required
                   value={payForm.payment_date}
                   onChange={(e) => setPayForm({ ...payForm, payment_date: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                 />
               </div>
 
@@ -874,28 +914,30 @@ _Manajemen Kos Finora_`;
                   type="text"
                   value={payForm.notes}
                   onChange={(e) => setPayForm({ ...payForm, notes: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   placeholder="Bukti transfer terverifikasi..."
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Konfirmasi Bayar'}
-                </button>
-              </div>
             </form>
+
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="payForm"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Konfirmasi Bayar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

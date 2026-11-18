@@ -77,6 +77,16 @@ export default function PropertiesPage() {
 
   useEffect(() => {
     loadProperties();
+
+    // Dukungan tombol ESC di keyboard untuk menutup modal dengan cepat
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setModalOpen(false);
+        setShareModalOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   function getEffectiveMapsUrl(p: { name: string; address: string; google_maps_url?: string }) {
@@ -477,41 +487,51 @@ export default function PropertiesPage() {
 
       {/* MODAL BAGIKAN LOKASI (SHARE GOOGLE MAPS) */}
       {shareModalOpen && selectedPropertyForShare && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-150">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setShareModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] my-auto overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
-                  <Share2 className="w-5 h-5" />
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <Share2 className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">Bagikan Lokasi Kos</h3>
-                  <p className="text-xs text-slate-400">{selectedPropertyForShare.name}</p>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">Bagikan Lokasi Kos</h3>
+                  <p className="text-[11px] text-slate-400">{selectedPropertyForShare.name}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShareModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95"
+                title="Tutup (Esc)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <div className="space-y-4 pt-4">
+            {/* SCROLLABLE BODY */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               {/* Info Box */}
-              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs space-y-1.5">
+              <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 text-xs space-y-1">
                 <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                  <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                   {selectedPropertyForShare.name}
                 </div>
-                <div className="text-slate-600 pl-5">
+                <div className="text-slate-600 pl-5 leading-relaxed">
                   {selectedPropertyForShare.address}
                 </div>
               </div>
 
               {/* Kirim Langsung via WhatsApp */}
-              <div className="bg-emerald-50/60 p-4 rounded-2xl border border-emerald-100">
-                <label className="text-xs font-bold text-emerald-950 mb-1.5 flex items-center gap-1.5">
+              <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-100/80">
+                <label className="text-xs font-bold text-emerald-950 mb-1 flex items-center gap-1.5">
                   <MessageSquare className="w-4 h-4 text-emerald-700" />
                   Kirim Lokasi via WhatsApp
                 </label>
@@ -529,7 +549,7 @@ export default function PropertiesPage() {
                   <button
                     type="button"
                     onClick={() => handleSendWhatsApp(selectedPropertyForShare)}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition active:scale-95"
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs shadow-sm transition active:scale-95 shrink-0"
                   >
                     <MessageSquare className="w-3.5 h-3.5" /> Kirim WA
                   </button>
@@ -540,7 +560,7 @@ export default function PropertiesPage() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between gap-2 p-3 rounded-xl border border-slate-200 bg-white">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-slate-600">Tautan Langsung Google Maps</p>
+                    <p className="text-[11px] font-bold text-slate-700">Tautan Google Maps</p>
                     <p className="text-xs text-slate-500 truncate font-mono">
                       {getEffectiveMapsUrl(selectedPropertyForShare)}
                     </p>
@@ -548,7 +568,7 @@ export default function PropertiesPage() {
                   <button
                     type="button"
                     onClick={() => handleCopyMapsLink(selectedPropertyForShare)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shrink-0"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shrink-0"
                   >
                     {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedLink ? 'Tersalin!' : 'Salin Link'}</span>
@@ -557,63 +577,84 @@ export default function PropertiesPage() {
 
                 <div className="flex items-center justify-between gap-2 p-3 rounded-xl border border-slate-200 bg-white">
                   <div className="min-w-0 flex-1">
-                    <p className="text-[11px] font-bold text-slate-600">Pesan Lengkap (Teks + Alamat + Link Maps)</p>
+                    <p className="text-[11px] font-bold text-slate-700">Pesan Lengkap (Teks + Alamat + Link)</p>
                     <p className="text-xs text-slate-400 truncate">
-                      Format pesan rapi yang siap ditempelkan di chat atau media sosial.
+                      Format pesan rapi yang siap ditempelkan di chat.
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => handleCopyShareText(selectedPropertyForShare)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-semibold shrink-0 shadow-sm"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-semibold shrink-0 shadow-sm"
                   >
                     {copiedText ? <Check className="w-3.5 h-3.5 text-white" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedText ? 'Tersalin!' : 'Salin Pesan'}</span>
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Preview Navigasi / Directions */}
-              <div className="pt-2 flex justify-between items-center text-xs text-slate-500">
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedPropertyForShare.name + ' ' + selectedPropertyForShare.address)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1"
-                >
-                  <Navigation className="w-3.5 h-3.5" /> Buka Navigasi Rute ke Lokasi
-                </a>
-                <button
-                  type="button"
-                  onClick={() => setShareModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-slate-500 hover:bg-slate-100 font-semibold"
-                >
-                  Tutup
-                </button>
-              </div>
+            {/* STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10 text-xs">
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(selectedPropertyForShare.name + ' ' + selectedPropertyForShare.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-700 hover:text-emerald-900 font-bold flex items-center gap-1"
+              >
+                <Navigation className="w-3.5 h-3.5" /> Buka Navigasi Rute &rarr;
+              </a>
+              <button
+                type="button"
+                onClick={() => setShareModalOpen(false)}
+                className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 font-semibold"
+              >
+                Tutup
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL TAMBAH / EDIT PROPERTI */}
+      {/* MODAL TAMBAH / EDIT PROPERTI (DENGAN HEADER & FOOTER STICKY + BACKDROP CLICK TO CLOSE) */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 overflow-y-auto max-h-[90vh]">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">
-                {formData.id ? 'Edit Properti Kos' : 'Tambah Properti Kos Baru'}
-              </h3>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER (TETAP DI ATAS, MUDAH DITUTUP) */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
+                    {formData.id ? 'Edit Properti Kos' : 'Tambah Properti Kos Baru'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Isi kelengkapan data gedung & titik maps</p>
+                </div>
+              </div>
+
+              {/* Tombol Tutup Besar & Jelas di Sudut Kanan Atas */}
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup Jendela (Esc / Klik Luar)"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-              <div className="grid grid-cols-2 gap-4">
+            {/* 2. SCROLLABLE FORM BODY (BISA DI-SCROLL LANCAR TANPA KELUAR LAYAR) */}
+            <form id="propertyForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">Kode Properti</label>
                   <input
@@ -621,7 +662,7 @@ export default function PropertiesPage() {
                     required
                     value={formData.property_code}
                     onChange={(e) => setFormData({ ...formData, property_code: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                     placeholder="Contoh: KOS-01"
                   />
                 </div>
@@ -633,7 +674,7 @@ export default function PropertiesPage() {
                     required
                     value={formData.total_floors}
                     onChange={(e) => setFormData({ ...formData, total_floors: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -645,7 +686,7 @@ export default function PropertiesPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600"
                   placeholder="Contoh: Kos Graha Asri Emerald"
                 />
               </div>
@@ -657,58 +698,55 @@ export default function PropertiesPage() {
                   rows={2}
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   placeholder="Jl. Mawar No. 12, Sleman, Yogyakarta"
                 />
               </div>
 
               {/* INTEGRASI GOOGLE MAPS */}
-              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-2">
+              <div className="p-3 rounded-2xl bg-emerald-50/50 border border-emerald-100 space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
                     <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                     Titik Lokasi Google Maps
                   </label>
-                  <span className="text-[11px] text-slate-400">Opsional</span>
+                  <span className="text-[10px] text-slate-400">Opsional</span>
                 </div>
 
                 <input
                   type="url"
                   value={formData.google_maps_url}
                   onChange={(e) => setFormData({ ...formData, google_maps_url: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
-                  placeholder="Tempel link Google Maps: https://maps.app.goo.gl/... atau https://goo.gl/maps/..."
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
+                  placeholder="https://maps.app.goo.gl/... atau https://goo.gl/maps/..."
                 />
 
-                <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     onClick={handleAutoGenerateMapsUrl}
-                    className="text-[11px] font-semibold text-emerald-700 bg-emerald-100/70 hover:bg-emerald-200/70 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1"
+                    className="text-[11px] font-semibold text-emerald-700 bg-emerald-100 hover:bg-emerald-200 px-2.5 py-1 rounded-lg transition flex items-center gap-1"
                   >
-                    <Compass className="w-3 h-3" /> Buat Otomatis dari Alamat
+                    <Compass className="w-3 h-3" /> Buat dari Alamat
                   </button>
                   <button
                     type="button"
                     onClick={handleOpenGoogleMapsSearch}
-                    className="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 px-2.5 py-1.5 rounded-lg transition flex items-center gap-1"
+                    className="text-[11px] font-semibold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100 px-2.5 py-1 rounded-lg transition flex items-center gap-1"
                   >
-                    <ExternalLink className="w-3 h-3" /> Cari di Google Maps
+                    <ExternalLink className="w-3 h-3" /> Cari di Maps
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-400 italic">
-                  Tips: Anda bisa buka Google Maps di HP, cari titik kos Anda, klik tombol 'Bagikan' (Share), lalu tempel tautannya di sini.
-                </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">Nama Pemilik / Pengelola</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Pemilik / Pengelola</label>
                   <input
                     type="text"
                     value={formData.owner_name}
                     onChange={(e) => setFormData({ ...formData, owner_name: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -717,12 +755,13 @@ export default function PropertiesPage() {
                     type="text"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                     placeholder="08123456789"
                   />
                 </div>
               </div>
 
+              {/* Komponen Unggah Foto Ramping */}
               <ImageUpload
                 label="Foto Bangunan Kos"
                 value={formData.photo_url}
@@ -737,28 +776,30 @@ export default function PropertiesPage() {
                   type="text"
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   placeholder="Fasilitas parkir luas, dekat kampus, dll."
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Properti'}
-                </button>
-              </div>
             </form>
+
+            {/* 3. STICKY FOOTER (TETAP DI BAWAH, TOMBOL BATAL & SIMPAN SELALU TERLIHAT) */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="propertyForm"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Properti'}
+              </button>
+            </div>
           </div>
         </div>
       )}

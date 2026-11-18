@@ -60,6 +60,14 @@ export default function TenantsPage() {
 
   useEffect(() => {
     loadTenants();
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setModalOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   function openAddModal() {
@@ -381,21 +389,41 @@ export default function TenantsPage() {
 
       {/* Modal Add / Edit Tenant */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-800">
-                {formData.id ? 'Edit Data Penghuni' : 'Tambah Penghuni Baru'}
-              </h3>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <Users className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
+                    {formData.id ? 'Edit Data Penghuni' : 'Tambah Penghuni Baru'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Data identitas, kontak, dan foto penyewa</p>
+                </div>
+              </div>
+
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
               >
                 <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleSave} className="space-y-4 mt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="tenantForm" onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap *</label>
                 <input
@@ -404,7 +432,7 @@ export default function TenantsPage() {
                   placeholder="Nama sesuai KTP"
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600"
                 />
               </div>
 
@@ -417,7 +445,7 @@ export default function TenantsPage() {
                     placeholder="081234567890"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -427,7 +455,7 @@ export default function TenantsPage() {
                     placeholder="16 digit NIK"
                     value={formData.id_card_number}
                     onChange={(e) => setFormData({ ...formData, id_card_number: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -448,7 +476,7 @@ export default function TenantsPage() {
                     placeholder="Mahasiswa / Karyawan"
                     value={formData.occupation}
                     onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -456,7 +484,7 @@ export default function TenantsPage() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
                   >
                     <option value="ACTIVE">Aktif Menyewa</option>
                     <option value="INACTIVE">Non-Aktif / Alumni</option>
@@ -471,7 +499,7 @@ export default function TenantsPage() {
                   placeholder="Kota / Daerah asal"
                   value={formData.origin_address}
                   onChange={(e) => setFormData({ ...formData, origin_address: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                 ></textarea>
               </div>
 
@@ -482,45 +510,47 @@ export default function TenantsPage() {
                   placeholder="Misal: Bawa kendaraan motor, bayar tiap tanggal 1"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                 ></textarea>
               </div>
-
-              <div className="flex items-center justify-between pt-4 border-t border-slate-100">
-                {formData.id ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const t = tenants.find(item => item.id === formData.id);
-                      if (t) {
-                        setModalOpen(false);
-                        handleDelete(t);
-                      }
-                    }}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-rose-50 text-rose-700 hover:bg-rose-100 font-bold text-xs transition-colors"
-                  >
-                    <Trash2 className="w-4 h-4" /> Hapus Penghuni
-                  </button>
-                ) : <div></div>}
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setModalOpen(false)}
-                    className="px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors"
-                  >
-                    Batal
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="px-6 py-2.5 rounded-2xl bg-[#064e3b] text-white font-bold text-sm hover:bg-[#047857] shadow-md transition-all disabled:opacity-50"
-                  >
-                    {saving ? 'Menyimpan...' : 'Simpan Penghuni'}
-                  </button>
-                </div>
-              </div>
             </form>
+
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              {formData.id ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const t = tenants.find(item => item.id === formData.id);
+                    if (t) {
+                      setModalOpen(false);
+                      handleDelete(t);
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 border border-rose-200/60"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Hapus
+                </button>
+              ) : <div></div>}
+
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  form="tenantForm"
+                  disabled={saving}
+                  className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Penghuni'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

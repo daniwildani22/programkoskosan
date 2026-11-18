@@ -266,27 +266,47 @@ export default function FinancePage() {
 
       {/* Modal Add / Edit Account */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="font-bold text-lg text-slate-800">
-                {formData.id ? 'Edit Rekening Bank / Kas' : 'Tambah Rekening Baru'}
-              </h3>
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <Wallet className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">
+                    {formData.id ? 'Edit Rekening Bank / Kas' : 'Tambah Rekening Baru'}
+                  </h3>
+                  <p className="text-[11px] text-slate-400">Atur akun penerimaan dana sewa</p>
+                </div>
+              </div>
+
               <button 
+                type="button"
                 onClick={() => setModalOpen(false)}
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
               >
                 <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleSaveAccount} className="space-y-4 mt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="accountForm" onSubmit={handleSaveAccount} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">Jenis Akun *</label>
                 <select
                   value={formData.account_type}
                   onChange={(e) => setFormData({ ...formData, account_type: e.target.value as any })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600 font-medium"
                 >
                   <option value="BANK">Rekening Bank Transfer (BCA, Mandiri, BRI, BNI, BSI)</option>
                   <option value="CASH">Kas Tunai Fisik (Petty Cash)</option>
@@ -302,7 +322,7 @@ export default function FinancePage() {
                   placeholder="Misal: Rekening BCA Utama / Kas Operasional"
                   value={formData.account_name}
                   onChange={(e) => setFormData({ ...formData, account_name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600"
                 />
               </div>
 
@@ -314,7 +334,7 @@ export default function FinancePage() {
                     placeholder="BCA / Mandiri / BRI"
                     value={formData.bank_name}
                     onChange={(e) => setFormData({ ...formData, bank_name: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -324,7 +344,7 @@ export default function FinancePage() {
                     placeholder="Contoh: 8720192831"
                     value={formData.account_number}
                     onChange={(e) => setFormData({ ...formData, account_number: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -336,7 +356,7 @@ export default function FinancePage() {
                   placeholder="Nama pemilik yang tertera di buku tabungan"
                   value={formData.holder_name}
                   onChange={(e) => setFormData({ ...formData, holder_name: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                 />
               </div>
 
@@ -350,7 +370,7 @@ export default function FinancePage() {
                     min={0}
                     value={formData.balance}
                     onChange={(e) => setFormData({ ...formData, balance: Number(e.target.value) || 0 })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600 font-bold text-emerald-800"
                   />
                 </div>
                 <div>
@@ -358,7 +378,7 @@ export default function FinancePage() {
                   <select
                     value={formData.status}
                     onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
                   >
                     <option value="ACTIVE">Aktif Digunakan</option>
                     <option value="INACTIVE">Non-Aktif</option>
@@ -373,21 +393,32 @@ export default function FinancePage() {
                   placeholder="Catatan rekening (opsional)"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
                 ></textarea>
               </div>
+            </form>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-5 py-2.5 rounded-2xl bg-slate-100 text-slate-700 font-semibold text-sm hover:bg-slate-200 transition-colors"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="accountForm"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Rekening'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
                   className="px-6 py-2.5 rounded-2xl bg-[#064e3b] text-white font-bold text-sm hover:bg-[#047857] shadow-md transition-all disabled:opacity-50"
                 >
                   {saving ? 'Menyimpan...' : 'Simpan Rekening'}

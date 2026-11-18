@@ -303,23 +303,46 @@ export default function DepositsPage() {
 
       {/* Modal Tambah Deposit */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">Catat Uang Deposit</h3>
-              <button onClick={() => setModalOpen(false)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
-                <X className="w-5 h-5" />
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <ShieldCheck className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">Catat Uang Deposit</h3>
+                  <p className="text-[11px] text-slate-400">Penerimaan dana jaminan sewa kamar</p>
+                </div>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
+              >
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="depositForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div>
                 <label className="text-xs font-bold text-slate-600 mb-1 block">Pilih Penghuni</label>
                 <select
                   required
                   value={formData.tenant_id}
                   onChange={(e) => setFormData({ ...formData, tenant_id: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600 bg-white"
                 >
                   <option value="">-- Pilih Penghuni --</option>
                   {tenants.map(t => (
@@ -333,7 +356,7 @@ export default function DepositsPage() {
                 <select
                   value={formData.room_id}
                   onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600 bg-white"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600 bg-white"
                 >
                   <option value="">-- Pilih Kamar --</option>
                   {rooms.map(r => (
@@ -342,7 +365,7 @@ export default function DepositsPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">Nominal Deposit (Rp)</label>
                   <input
@@ -351,7 +374,7 @@ export default function DepositsPage() {
                     min="1"
                     value={formData.deposit_amount}
                     onChange={(e) => setFormData({ ...formData, deposit_amount: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-emerald-800 focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold text-emerald-800 focus:outline-emerald-600"
                   />
                 </div>
                 <div>
@@ -361,7 +384,7 @@ export default function DepositsPage() {
                     required
                     value={formData.received_date}
                     onChange={(e) => setFormData({ ...formData, received_date: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -372,41 +395,68 @@ export default function DepositsPage() {
                   type="text"
                   value={formData.notes}
                   onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                 />
               </div>
-
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50">
-                  Batal
-                </button>
-                <button type="submit" disabled={saving} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-sm font-bold shadow-md">
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Deposit'}
-                </button>
-              </div>
             </form>
+
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button 
+                type="button" 
+                onClick={() => setModalOpen(false)} 
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                form="depositForm"
+                disabled={saving} 
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Deposit'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
       {/* Modal Refund */}
       {refundModalOpen && selectedDeposit && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-              <h3 className="text-lg font-bold text-slate-800">Proses Pengembalian Deposit</h3>
-              <button onClick={() => setRefundModalOpen(false)} className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400">
-                <X className="w-5 h-5" />
+        <div 
+          className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
+          onClick={() => setRefundModalOpen(false)}
+        >
+          <div 
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. STICKY HEADER */}
+            <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
+              <div>
+                <h3 className="text-base font-bold text-slate-800 leading-tight">Proses Pengembalian Deposit</h3>
+                <p className="text-[11px] text-slate-400">Pengembalian dana jaminan saat checkout</p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setRefundModalOpen(false)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-rose-100 hover:text-rose-700 text-slate-600 text-xs font-bold transition active:scale-95 shadow-sm"
+                title="Tutup (Esc)"
+              >
+                <X className="w-4 h-4" />
+                <span>Tutup</span>
               </button>
             </div>
 
-            <form onSubmit={handleRefundSubmit} className="space-y-4 pt-4">
+            {/* 2. SCROLLABLE FORM BODY */}
+            <form id="refundForm" onSubmit={handleRefundSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs">
                 <div>Penghuni: <strong>{selectedDeposit.tenant?.full_name || 'Penghuni'}</strong></div>
                 <div>Deposit Awal: <strong className="text-emerald-800">{formatRupiah(selectedDeposit.deposit_amount)}</strong></div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">Nominal Refund (Rp)</label>
                   <input
@@ -414,17 +464,17 @@ export default function DepositsPage() {
                     min="0"
                     value={refundForm.refund_amount}
                     onChange={(e) => setRefundForm({ ...refundForm, refund_amount: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-emerald-800 focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold text-emerald-800 focus:outline-emerald-600"
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">Potongan Kerusakan (Rp)</label>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Potongan Kerusakan</label>
                   <input
                     type="number"
                     min="0"
                     value={refundForm.deduction_amount}
                     onChange={(e) => setRefundForm({ ...refundForm, deduction_amount: Number(e.target.value) })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-rose-600 focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm font-bold text-rose-600 focus:outline-emerald-600"
                   />
                 </div>
               </div>
@@ -436,18 +486,34 @@ export default function DepositsPage() {
                     type="text"
                     value={refundForm.deduction_reason}
                     onChange={(e) => setRefundForm({ ...refundForm, deduction_reason: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-emerald-600"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                     placeholder="Kunci hilang, cat kamar terkelupas..."
                   />
                 </div>
               )}
+            </form>
 
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
-                <button type="button" onClick={() => setRefundModalOpen(false)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50">
-                  Batal
-                </button>
-                <button type="submit" disabled={saving} className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-bold shadow-md">
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Memproses...' : 'Konfirmasi Refund'}
+            {/* 3. STICKY FOOTER */}
+            <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
+              <button 
+                type="button" 
+                onClick={() => setRefundModalOpen(false)} 
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button 
+                type="submit" 
+                form="refundForm"
+                disabled={saving} 
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Memproses...' : 'Konfirmasi Refund'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
                 </button>
               </div>
             </form>
