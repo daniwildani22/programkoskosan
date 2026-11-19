@@ -146,6 +146,32 @@ export default function ContractsPage() {
       // Update status kamar jadi TERISI
       await supabase.from('rooms').update({ status: 'TERISI' }).eq('id', formData.room_id);
 
+      // Otomatis terbitkan tagihan sewa awal di tabel rent_bills agar langsung terbaca di halaman Tagihan
+      const totalInitial = Number(formData.rent_price) + Number(formData.deposit_amount || 0);
+      const billId = 'BILL_' + newId;
+      const billNum = 'INV-' + formData.contract_number.replace('CTR-', '');
+
+      await supabase.from('rent_bills').insert([{
+        id: billId,
+        bill_number: billNum,
+        contract_id: newId,
+        tenant_id: formData.tenant_id,
+        room_id: formData.room_id,
+        property_id: selectedRoom?.property_id || null,
+        period_name: `Sewa Awal (${formatDateDisplay(formData.start_date)} - ${formatDateDisplay(formData.end_date)})`,
+        period_start: formData.start_date,
+        period_end: formData.end_date,
+        due_date: formData.start_date,
+        rent_amount: Number(formData.rent_price),
+        other_charges: Number(formData.deposit_amount || 0),
+        discount_amount: 0,
+        total_amount: totalInitial,
+        paid_amount: 0,
+        remaining_amount: totalInitial,
+        status: 'UNPAID',
+        notes: 'Tagihan sewa otomatis dari kontrak ' + formData.contract_number
+      }]);
+
       setModalOpen(false);
       await loadData();
     } catch (err: any) {

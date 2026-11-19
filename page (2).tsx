@@ -514,12 +514,6 @@ export default function DepositsPage() {
           </div>
         </div>
       )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

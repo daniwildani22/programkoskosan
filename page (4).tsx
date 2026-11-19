@@ -419,15 +419,6 @@ export default function FinancePage() {
           </div>
         </div>
       )}
-                  className="px-6 py-2.5 rounded-2xl bg-[#064e3b] text-white font-bold text-sm hover:bg-[#047857] shadow-md transition-all disabled:opacity-50"
-                >
-                  {saving ? 'Menyimpan...' : 'Simpan Rekening'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

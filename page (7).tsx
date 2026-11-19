@@ -22,7 +22,8 @@ import {
   Calendar, 
   Check, 
   Send,
-  Trash2
+  Trash2,
+  Zap
 } from 'lucide-react';
 
 export default function PaymentsPage() {
@@ -72,11 +73,133 @@ export default function PaymentsPage() {
 
       if (bErr) throw bErr;
       if (pErr) throw pErr;
-      setBills(bData || []);
+
+      let currentBills = bData || [];
+
+      // Auto-sinkronisasi dari seluruh kontrak: jika ada kontrak yang belum memiliki tagihan, buat otomatis
+      const { data: allContracts } = await supabase
+        .from('contracts')
+        .select('*, tenant:tenants(*), room:rooms(*)')
+        .order('created_at', { ascending: false });
+
+      if (allContracts && allContracts.length > 0) {
+        const existingContractIds = new Set(currentBills.map(b => b.contract_id).filter(Boolean));
+        const missingContracts = allContracts.filter(c => !existingContractIds.has(c.id));
+
+        if (missingContracts.length > 0) {
+          const autoBills = missingContracts.map(c => {
+            const rent = Number(c.rent_price) || 0;
+            const deposit = Number(c.deposit_amount) || 0;
+            const total = rent + deposit;
+            const billId = 'BILL_' + c.id;
+            const billNum = 'INV-' + (c.contract_number ? c.contract_number.replace('CTR-', '') : Date.now().toString().slice(-6));
+
+            return {
+              id: billId,
+              bill_number: billNum,
+              contract_id: c.id,
+              tenant_id: c.tenant_id,
+              room_id: c.room_id,
+              property_id: c.property_id || null,
+              period_name: `Sewa Awal (${formatDateDisplay(c.start_date)} - ${formatDateDisplay(c.end_date)})`,
+              period_start: c.start_date,
+              period_end: c.end_date,
+              due_date: c.start_date,
+              rent_amount: rent,
+              other_charges: deposit,
+              discount_amount: 0,
+              total_amount: total,
+              paid_amount: 0,
+              remaining_amount: total,
+              status: 'UNPAID',
+              notes: 'Otomatis dibuat dari kontrak ' + c.contract_number
+            };
+          });
+
+          await supabase.from('rent_bills').upsert(autoBills, { onConflict: 'id' });
+
+          const { data: refreshedBills } = await supabase
+            .from('rent_bills')
+            .select('*, tenant:tenants(*), room:rooms(*)')
+            .order('due_date', { ascending: false });
+
+          if (refreshedBills) {
+            currentBills = refreshedBills;
+          }
+        }
+      }
+
+      setBills(currentBills);
       setPayments(pData || []);
       setAccounts(aData || []);
     } catch (err: any) {
       alert('Gagal memuat data transaksi: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSyncFromContracts() {
+    setLoading(true);
+    try {
+      const { data: allContracts, error: cErr } = await supabase
+        .from('contracts')
+        .select('*, tenant:tenants(*), room:rooms(*)')
+        .order('created_at', { ascending: false });
+
+      if (cErr) throw cErr;
+
+      const { data: existingBills, error: bErr } = await supabase
+        .from('rent_bills')
+        .select('*');
+
+      if (bErr) throw bErr;
+
+      const existingContractIds = new Set((existingBills || []).map(b => b.contract_id).filter(Boolean));
+      const missingContracts = (allContracts || []).filter(c => !existingContractIds.has(c.id));
+
+      if (missingContracts.length === 0) {
+        alert('Seluruh kontrak (' + (allContracts?.length || 0) + ' kontrak) sudah tersinkronisasi ke daftar tagihan.');
+        await loadData();
+        return;
+      }
+
+      const autoBills = missingContracts.map(c => {
+        const rent = Number(c.rent_price) || 0;
+        const deposit = Number(c.deposit_amount) || 0;
+        const total = rent + deposit;
+        const billId = 'BILL_' + c.id;
+        const billNum = 'INV-' + (c.contract_number ? c.contract_number.replace('CTR-', '') : Date.now().toString().slice(-6));
+
+        return {
+          id: billId,
+          bill_number: billNum,
+          contract_id: c.id,
+          tenant_id: c.tenant_id,
+          room_id: c.room_id,
+          property_id: c.property_id || null,
+          period_name: `Sewa Awal (${formatDateDisplay(c.start_date)} - ${formatDateDisplay(c.end_date)})`,
+          period_start: c.start_date,
+          period_end: c.end_date,
+          due_date: c.start_date,
+          rent_amount: rent,
+          other_charges: deposit,
+          discount_amount: 0,
+          total_amount: total,
+          paid_amount: 0,
+          remaining_amount: total,
+          status: 'UNPAID',
+          notes: 'Otomatis dibuat dari kontrak ' + c.contract_number
+        };
+      });
+
+      const { error: insErr } = await supabase.from('rent_bills').upsert(autoBills, { onConflict: 'id' });
+      if (insErr) throw insErr;
+
+      await loadData();
+      alert(`Berhasil menyinkronkan ${autoBills.length} tagihan sewa baru dari kontrak aktif!`);
+    } catch (err: any) {
+      alert('Gagal menyinkronkan kontrak: ' + err.message);
     } finally {
       setLoading(false);
     }
@@ -226,6 +349,130 @@ _Manajemen Kos Finora_`;
       isPaid: b.status === 'PAID'
     });
     setReceiptModalOpen(true);
+  }
+
+  function openReceiptModalFromPayment(p: Payment) {
+    const relatedBill = bills.find(b => b.id === p.bill_id);
+    if (relatedBill) {
+      openReceiptModal(relatedBill);
+      return;
+    }
+    const pseudoBill: RentBill = {
+      id: p.bill_id || 'BILL_' + p.id,
+      bill_number: p.receipt_number || p.payment_number,
+      contract_id: p.contract_id || '',
+      tenant_id: p.tenant_id,
+      room_id: p.room_id || '',
+      property_id: p.property_id || null,
+      period_name: `Pembayaran Tanggal ${formatDateDisplay(p.payment_date)}`,
+      period_start: p.payment_date,
+      period_end: p.payment_date,
+      due_date: p.payment_date,
+      rent_amount: Number(p.amount),
+      other_charges: 0,
+      discount_amount: 0,
+      total_amount: Number(p.amount),
+      paid_amount: Number(p.amount),
+      remaining_amount: 0,
+      status: 'PAID',
+      notes: p.notes || 'Pembayaran sewa kos',
+      tenant: p.tenant,
+      room: p.room
+    };
+    openReceiptModal(pseudoBill);
+  }
+
+  function sendWaReceiptFromPayment(p: Payment) {
+    const phone = cleanWaPhone(p.tenant?.phone);
+    if (!phone) {
+      alert('Nomor WhatsApp penghuni belum tercatat.');
+      return;
+    }
+
+    const msg = `*KUITANSI RESMI PEMBAYARAN SEWA KOS*
+STATUS: ✅ *DITERIMA (LUNAS)*
+
+Terima kasih, pembayaran telah kami terima dan tercatat:
+📄 *No. Transaksi:* ${p.payment_number}
+👤 *Penghuni:* ${p.tenant?.full_name || '-'}
+🚪 *Kamar:* ${p.room?.room_code || '-'}
+💵 *Nominal Dibayar:* ${formatRupiah(p.amount)}
+💳 *Metode Pembayaran:* ${p.payment_method}
+📅 *Tanggal Bayar:* ${formatDateDisplay(p.payment_date)}
+📝 *Keterangan:* ${p.notes || 'Pembayaran sewa'}
+👤 *Diterima Oleh:* ${p.received_by || 'Owner / Pengelola'}
+
+Terima kasih atas kerja samanya! 🙏
+_Manajemen Kos Finora_`;
+
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
+  }
+
+  // Tombol Cepat Lunas Langsung (1-Klik)
+  async function handleQuickFullPayment(b: RentBill) {
+    const remaining = Number(b.remaining_amount || b.total_amount);
+    if (remaining <= 0) {
+      alert('Tagihan ini sudah lunas.');
+      return;
+    }
+
+    const confirmMsg = `Tandai tagihan "${b.bill_number}" (${b.tenant?.full_name || 'Penghuni'}) sebesar ${formatRupiah(remaining)} sebagai LUNAS langsung?\n\nSistem akan otomatis mencatatnya ke Riwayat Pembayaran dan memperbarui saldo.`;
+    if (!confirm(confirmMsg)) return;
+
+    setLoading(true);
+    try {
+      const payId = 'PAY_' + Date.now();
+      const payNumber = 'PAY-' + Date.now().toString().slice(-6);
+      const todayStr = new Date().toISOString().substring(0, 10);
+      const accId = accounts[0]?.id || null;
+
+      // 1. Simpan pembayaran
+      const { error: pErr } = await supabase.from('payments').insert([{
+        id: payId,
+        payment_number: payNumber,
+        bill_id: b.id,
+        contract_id: b.contract_id || null,
+        tenant_id: b.tenant_id,
+        room_id: b.room_id || null,
+        property_id: b.property_id || null,
+        payment_date: todayStr,
+        amount: remaining,
+        payment_method: 'TRANSFER_BANK',
+        account_id: accId,
+        receipt_number: 'REC-' + Date.now().toString().slice(-6),
+        notes: `Pelunasan langsung ${b.period_name} (${b.bill_number})`,
+        received_by: isOwner ? 'Owner' : 'Administrator',
+        status: 'CONFIRMED'
+      }]);
+      if (pErr) throw pErr;
+
+      // 2. Update tagihan menjadi PAID
+      const newPaid = Number(b.total_amount);
+      const { error: bErr } = await supabase.from('rent_bills').update({
+        paid_amount: newPaid,
+        remaining_amount: 0,
+        status: 'PAID'
+      }).eq('id', b.id);
+      if (bErr) throw bErr;
+
+      // 3. Update saldo akun kas
+      if (accId) {
+        const targetAcc = accounts.find(a => a.id === accId);
+        if (targetAcc) {
+          const updatedBalance = Number(targetAcc.current_balance || 0) + remaining;
+          await supabase.from('cash_bank_accounts').update({
+            current_balance: updatedBalance
+          }).eq('id', accId);
+        }
+      }
+
+      await loadData();
+      alert(`Tagihan ${b.bill_number} berhasil dilunasi dan otomatis masuk ke Riwayat Pembayaran!`);
+    } catch (err: any) {
+      alert('Gagal melunasi tagihan: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handlePrintReceipt() {
@@ -474,6 +721,16 @@ _Manajemen Kos Finora_`;
 
         {/* Filter & Refresh */}
         <div className="flex items-center gap-3">
+          <button 
+            onClick={handleSyncFromContracts}
+            disabled={loading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#064e3b] border border-emerald-200 text-xs font-bold transition shadow-sm"
+            title="Tarik & Sinkronkan Tagihan dari Semua Kontrak Aktif"
+          >
+            <Zap className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Sinkron Kontrak</span>
+          </button>
+
           <div className="relative min-w-[200px]">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -617,15 +874,26 @@ _Manajemen Kos Finora_`;
                               <span className="hidden sm:inline">Cetak</span>
                             </button>
 
-                            {/* Tombol Catat Bayar */}
+                            {/* Tombol Catat Bayar & Cepat Lunas */}
                             {b.status !== 'PAID' && (
-                              <button
-                                onClick={() => handleOpenPayModal(b)}
-                                className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-bold transition shadow-sm"
-                              >
-                                <CreditCard className="w-3.5 h-3.5" />
-                                <span>Bayar</span>
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleOpenPayModal(b)}
+                                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#064e3b] hover:bg-[#065f46] text-white text-xs font-bold transition shadow-sm"
+                                  title="Buka Form Pembayaran"
+                                >
+                                  <CreditCard className="w-3.5 h-3.5" />
+                                  <span>Bayar</span>
+                                </button>
+                                <button
+                                  onClick={() => handleQuickFullPayment(b)}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-sm"
+                                  title="Langsung Lunaskan Tagihan Ini (1-Klik)"
+                                >
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Lunas</span>
+                                </button>
+                              </>
                             )}
 
                             {/* Tombol Hapus Tagihan (Owner/Admin) */}
@@ -693,21 +961,22 @@ _Manajemen Kos Finora_`;
                         {p.received_by || 'Admin'}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                          {/* Tombol Kirim WA Kuitansi */}
                           <button
-                            onClick={() => {
-                              // Cetak kuitansi dari payment
-                              if (p.bill_id) {
-                                const relatedBill = bills.find(b => b.id === p.bill_id);
-                                if (relatedBill) {
-                                  openReceiptModal(relatedBill);
-                                  return;
-                                }
-                              }
-                              // Fallback jika pembayaran lepas
-                              alert(`Pembayaran ${p.payment_number} sebesar ${formatRupiah(p.amount)} berhasil diverifikasi.`);
-                            }}
+                            onClick={() => sendWaReceiptFromPayment(p)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-800 font-bold text-xs border border-emerald-200 transition shadow-sm"
+                            title="Kirim Struk Kuitansi Pembayaran via WA"
+                          >
+                            <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                            <span className="hidden sm:inline">Kirim WA</span>
+                          </button>
+
+                          {/* Tombol Cetak Kuitansi Resmi */}
+                          <button
+                            onClick={() => openReceiptModalFromPayment(p)}
                             className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition shadow-sm"
+                            title="Cetak Kuitansi Resmi"
                           >
                             <Printer className="w-3.5 h-3.5" />
                             <span>Cetak</span>
@@ -891,6 +1160,7 @@ _Manajemen Kos Finora_`;
                     H. Budiman / Pengelola
                   </div>
                 </div>
+              </div>
               </div>
             </div>
 
