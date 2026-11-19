@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ImageUpload from '@/components/ImageUpload';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Tenant } from '@/types/database';
 import { 
@@ -21,6 +22,7 @@ import {
 } from 'lucide-react';
 
 export default function TenantsPage() {
+  const { isOwner, isAdmin, isStaff } = useAuth();
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -159,6 +161,10 @@ export default function TenantsPage() {
   }
 
   async function handleDelete(t: Tenant) {
+    if (!isOwner) {
+      alert('Hanya akun Owner (Pemilik Kos) yang memiliki wewenang untuk menghapus data penghuni.');
+      return;
+    }
     const confirmMsg = `Apakah Anda yakin ingin menghapus data penghuni:\n"${t.full_name}" (${t.tenant_code})?\n\nSemua data kontrak, tagihan, dan riwayat pembayaran terkait penghuni ini akan ikut dihapus secara permanen.`;
     if (!confirm(confirmMsg)) return;
 
@@ -216,12 +222,14 @@ export default function TenantsPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={openAddModal}
-            className="px-5 py-2.5 rounded-2xl bg-[#064e3b] hover:bg-[#047857] text-white font-bold text-sm shadow-md transition-all flex items-center gap-2"
-          >
-            <Plus className="w-4 h-4" /> Tambah Penghuni
-          </button>
+          {!isStaff && (
+            <button
+              onClick={openAddModal}
+              className="px-5 py-2.5 rounded-2xl bg-[#064e3b] hover:bg-[#047857] text-white font-bold text-sm shadow-md transition-all flex items-center gap-2"
+            >
+              <Plus className="w-4 h-4" /> Tambah Penghuni
+            </button>
+          )}
         </div>
       </div>
 
@@ -362,20 +370,29 @@ export default function TenantsPage() {
                       {/* AKSI */}
                       <td className="py-4 px-6 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => openEditModal(t)}
-                            className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors shadow-sm"
-                            title="Edit Penghuni"
-                          >
-                            <Edit3 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(t)}
-                            className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shadow-sm"
-                            title="Hapus Penghuni"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
+                          {!isStaff && (
+                            <button
+                              onClick={() => openEditModal(t)}
+                              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors shadow-sm"
+                              title="Edit Data Penghuni"
+                            >
+                              <Edit3 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {isOwner && (
+                            <button
+                              onClick={() => handleDelete(t)}
+                              className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shadow-sm"
+                              title="Hapus Penghuni (Khusus Owner)"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                          {isStaff && (
+                            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg font-medium">
+                              Lihat Saja
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>

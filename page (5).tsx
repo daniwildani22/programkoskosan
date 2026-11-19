@@ -11,7 +11,10 @@ import {
   EyeOff, 
   ArrowRight, 
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  Crown,
+  Shield,
+  UserCheck
 } from 'lucide-react';
 
 export default function LoginPage() {
@@ -42,6 +45,12 @@ export default function LoginPage() {
     }
   }
 
+  function setDemoAccount(u: string, p: string) {
+    setUsername(u);
+    setPassword(p);
+    setErrorMsg('');
+  }
+
   return (
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-[#064e3b] via-[#065f46] to-slate-900 p-4 sm:p-6">
       {/* Background Ornaments */}
@@ -50,27 +59,74 @@ export default function LoginPage() {
         <div className="absolute -bottom-40 -left-40 w-96 h-96 rounded-full bg-emerald-600 blur-3xl"></div>
       </div>
 
-      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-white/20 p-8 sm:p-10 overflow-hidden">
+      <div className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-white/20 p-6 sm:p-10 overflow-hidden">
         {/* Brand Header */}
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#064e3b] mx-auto mb-4 shadow-sm">
-            <Building2 className="w-8 h-8" />
+        <div className="text-center mb-6">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-[#064e3b] mx-auto mb-3 sm:mb-4 shadow-sm">
+            <Building2 className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">KOS MANAGEMENT</h1>
-          <p className="text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Finora Cloud Edition</p>
-          <p className="text-sm text-slate-500 mt-2">Silakan login untuk mengakses dashboard operasional kos.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">KOS MANAGEMENT</h1>
+          <p className="text-[11px] sm:text-xs text-emerald-700 font-bold uppercase tracking-wider mt-1">Finora Cloud Edition</p>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1.5">Pilih hak akses atau masuk dengan akun Anda.</p>
+        </div>
+
+        {/* Quick Role Switcher Buttons */}
+        <div className="mb-6 p-2 rounded-2xl bg-slate-50 border border-slate-200/80">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 text-center">
+            Pilihan Cepat Akun Demo (Uji Hak Akses):
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 mt-1">
+            <button
+              type="button"
+              onClick={() => setDemoAccount('admin', 'admin123')}
+              className={`p-2 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 border ${
+                username === 'admin' 
+                  ? 'bg-amber-500 text-white border-amber-600 shadow-sm' 
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <Crown className="w-4 h-4" />
+              <span className="text-[10px] font-bold">Owner</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDemoAccount('pengelola', 'admin123')}
+              className={`p-2 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 border ${
+                username === 'pengelola' 
+                  ? 'bg-blue-600 text-white border-blue-700 shadow-sm' 
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              <span className="text-[10px] font-bold">Admin</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDemoAccount('user', 'user123')}
+              className={`p-2 rounded-xl text-center transition flex flex-col items-center justify-center gap-1 border ${
+                username === 'user' 
+                  ? 'bg-[#064e3b] text-white border-emerald-800 shadow-sm' 
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border-slate-200'
+              }`}
+            >
+              <UserCheck className="w-4 h-4" />
+              <span className="text-[10px] font-bold">Staf</span>
+            </button>
+          </div>
         </div>
 
         {/* Error Alert */}
         {errorMsg && (
-          <div className="mb-6 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-3">
+          <div className="mb-5 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start gap-2.5">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-rose-600" />
             <span>{errorMsg}</span>
           </div>
         )}
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="text-xs font-bold text-slate-700 mb-1.5 block">Username Akun</label>
             <div className="relative">
@@ -80,8 +136,8 @@ export default function LoginPage() {
                 required
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="Masukkan username (cth: admin)"
-                className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-emerald-600 focus:border-emerald-600 transition"
+                placeholder="Masukkan username"
+                className="w-full pl-11 pr-4 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-emerald-600 focus:border-emerald-600 transition"
               />
             </div>
           </div>
@@ -98,7 +154,7 @@ export default function LoginPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Masukkan password..."
-                className="w-full pl-11 pr-11 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-emerald-600 focus:border-emerald-600 transition"
+                className="w-full pl-11 pr-11 py-2.5 sm:py-3 rounded-xl border border-slate-200 text-xs sm:text-sm font-medium focus:outline-emerald-600 focus:border-emerald-600 transition"
               />
               <button
                 type="button"
@@ -113,7 +169,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full flex items-center justify-center gap-2 py-3.5 px-4 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-bold text-sm shadow-lg shadow-emerald-950/20 transition-all duration-200 disabled:opacity-70 mt-2"
+            className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-bold text-xs sm:text-sm shadow-lg shadow-emerald-950/20 transition-all duration-200 disabled:opacity-70 mt-2 active:scale-95"
           >
             {loading ? (
               <span>Memverifikasi...</span>
@@ -126,17 +182,9 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Default Credentials Box */}
-        <div className="mt-8 pt-6 border-t border-slate-100 bg-slate-50 p-4 rounded-2xl text-xs text-slate-600">
-          <div className="flex items-center gap-2 text-emerald-800 font-bold mb-1">
-            <ShieldCheck className="w-4 h-4" /> Akun Bawaan (Default Owner):
-          </div>
-          <div className="grid grid-cols-2 gap-2 mt-2 font-mono">
-            <div>Username: <strong className="text-slate-900">admin</strong></div>
-            <div>Password: <strong className="text-slate-900">admin123</strong></div>
-          </div>
-          <p className="text-[11px] text-slate-400 mt-2 leading-relaxed">
-            Password dapat diubah kapan saja melalui menu <strong>Pengaturan &gt; Pengguna</strong>.
+        <div className="mt-5 pt-4 border-t border-slate-100 text-center">
+          <p className="text-[11px] text-slate-400">
+            Sistem Keamanan Berbasis Peran: <strong>Owner</strong> (Superadmin), <strong>Admin</strong> (Pengelola), dan <strong>Staf</strong> (Lapangan).
           </p>
         </div>
       </div>

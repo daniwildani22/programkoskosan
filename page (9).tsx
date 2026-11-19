@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ImageUpload from '@/components/ImageUpload';
+import { useAuth } from '@/context/AuthContext';
 import { supabase, formatRupiah } from '@/lib/supabase';
 import { Room, Property } from '@/types/database';
 import { 
@@ -20,6 +21,7 @@ import {
 } from 'lucide-react';
 
 export default function RoomsPage() {
+  const { isOwner, isAdmin, isStaff } = useAuth();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,6 +175,10 @@ export default function RoomsPage() {
   }
 
   async function handleDelete(room: Room) {
+    if (!isOwner) {
+      alert('Hanya akun Owner (Pemilik Kos) yang memiliki wewenang untuk menghapus unit kamar.');
+      return;
+    }
     if (!confirm(`Hapus kamar "${room.room_code} - ${room.name}"?`)) return;
     try {
       const { error } = await supabase.from('rooms').delete().eq('id', room.id);
@@ -242,12 +248,14 @@ export default function RoomsPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
-          >
-            <Plus className="w-4 h-4" /> Tambah Kamar
-          </button>
+          {!isStaff && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
+            >
+              <Plus className="w-4 h-4" /> Tambah Kamar
+            </button>
+          )}
         </div>
       </div>
 
@@ -329,19 +337,23 @@ export default function RoomsPage() {
                     </div>
 
                     <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenModal(r)}
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" /> Edit
-                      </button>
-                      <button
-                        onClick={() => handleDelete(r)}
-                        className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
-                        title="Hapus Kamar"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isStaff && (
+                        <button
+                          onClick={() => handleOpenModal(r)}
+                          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" /> Edit
+                        </button>
+                      )}
+                      {isOwner && (
+                        <button
+                          onClick={() => handleDelete(r)}
+                          className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
+                          title="Hapus Kamar (Khusus Owner)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

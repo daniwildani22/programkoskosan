@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
-import { User } from '@/types/database';
+import { User, UserRole } from '@/types/database';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -11,6 +11,10 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => void;
   updateUserPassword: (userId: string, newPassword: string) => Promise<{ success: boolean; message?: string }>;
+  isOwner: boolean;
+  isAdmin: boolean;
+  isStaff: boolean;
+  canAccessRoute: (routePath: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,7 +22,11 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   login: async () => ({ success: false }),
   logout: () => {},
-  updateUserPassword: async () => ({ success: false })
+  updateUserPassword: async () => ({ success: false }),
+  isOwner: false,
+  isAdmin: false,
+  isStaff: false,
+  canAccessRoute: () => false
 });
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -52,6 +60,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [currentUser, loading, pathname, router]);
 
+  // Hak Akses Berdasarkan Role
+  const currentRole = (currentUser?.role || 'STAFF').toUpperCase() as UserRole;
+  const isOwner = currentRole === 'OWNER';
+  const isAdmin = currentRole === 'ADMIN' || isOwner;
+  const isStaff = currentRole === 'STAFF' || currentRole === 'USER';
+
+  // Pemeriksaan izin akses rute halaman (Route Guard)
+  function canAccessRoute(routePath: string): boolean {
+    if (!currentUser) return false;
+    if (isOwner) return true; // Owner memiliki akses ke 100% semua halaman
+
+    // Rute yang dapat diakses oleh ADMIN (Operasional)
+    const adminRoutes = [
+      '/',
+      '/properties',
+      '/rooms',
+      '/tenants',
+      '/contracts',
+      '/payments',
+      '/utilities',
+      '/expenses',
+      '/finance',
+      '/deposits',
+      '/maintenance',
+      '/settings' // Hanya tab ganti password sendiri
+    ];
+
+    // Rute yang dapat diakses oleh USER / STAFF (Lapangan / Frontline)
+    const staffRoutes = [
+      '/',
+      '/properties', // Hanya lihat & bagikan maps
+      '/rooms',      // Hanya lihat ketersediaan
+      '/tenants',    // Hanya lihat identitas
+      '/utilities',  // Catat meteran listrik & air
+      '/maintenance',// Catat keluhan fasilitas
+      '/settings'    // Hanya ganti password sendiri
+    ];
+
+    if (currentRole === 'ADMIN') {
+      return adminRoutes.includes(routePath);
+    }
+
+    if (isStaff) {
+      return staffRoutes.includes(routePath);
+    }
+
+    return false;
+  }
+
   async function login(usernameInput: string, passwordInput: string): Promise<{ success: boolean; message?: string }> {
     const uName = usernameInput.trim().toLowerCase();
     const pWord = passwordInput.trim();
@@ -66,12 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .single();
 
       if (error || !data) {
-        // Fallback jika database Supabase users masih kosong saat awal setup
+        // Fallback akun default jika tabel users di Supabase belum dibuat / kosong
         if (uName === 'admin' && (pWord === 'admin123' || pWord === 'admin')) {
           const fallbackUser: User = {
             id: 'USR_OWNER_01',
             username: 'admin',
-            full_name: 'Owner / Administrator',
+            full_name: 'H. Budiman (Owner)',
             email: 'owner@kosmanagement.com',
             role: 'OWNER',
             phone: '081234567890',
@@ -83,6 +140,41 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem('kms_session_user', JSON.stringify(fallbackUser));
           return { success: true };
         }
+
+        if (uName === 'pengelola' && (pWord === 'admin123' || pWord === 'pengelola')) {
+          const fallbackUser: User = {
+            id: 'USR_ADMIN_01',
+            username: 'pengelola',
+            full_name: 'Siti Rahma (Admin Operasional)',
+            email: 'admin@kosmanagement.com',
+            role: 'ADMIN',
+            phone: '081298765432',
+            status: 'ACTIVE',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setCurrentUser(fallbackUser);
+          localStorage.setItem('kms_session_user', JSON.stringify(fallbackUser));
+          return { success: true };
+        }
+
+        if ((uName === 'user' || uName === 'staf') && (pWord === 'user123' || pWord === 'staf123' || pWord === 'user')) {
+          const fallbackUser: User = {
+            id: 'USR_STAFF_01',
+            username: uName,
+            full_name: 'Budi Santoso (Staf Lapangan)',
+            email: 'staff@kosmanagement.com',
+            role: 'USER',
+            phone: '081345678901',
+            status: 'ACTIVE',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+          setCurrentUser(fallbackUser);
+          localStorage.setItem('kms_session_user', JSON.stringify(fallbackUser));
+          return { success: true };
+        }
+
         return { success: false, message: 'Username tidak ditemukan atau akun dinonaktifkan.' };
       }
 
@@ -134,7 +226,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, loading, login, logout, updateUserPassword }}>
+    <AuthContext.Provider value={{ 
+      currentUser, 
+      loading, 
+      login, 
+      logout, 
+      updateUserPassword,
+      isOwner,
+      isAdmin,
+      isStaff,
+      canAccessRoute
+    }}>
       {children}
     </AuthContext.Provider>
   );

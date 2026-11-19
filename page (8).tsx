@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import ImageUpload from '@/components/ImageUpload';
+import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { Property } from '@/types/database';
 import { 
@@ -28,6 +29,7 @@ import {
 } from 'lucide-react';
 
 export default function PropertiesPage() {
+  const { isOwner, isAdmin, isStaff } = useAuth();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -207,6 +209,10 @@ export default function PropertiesPage() {
   }
 
   async function handleDelete(prop: Property) {
+    if (!isOwner) {
+      alert('Hanya akun Owner (Pemilik Kos) yang berhak menghapus gedung properti.');
+      return;
+    }
     if (!confirm(`Hapus properti "${prop.name}"? Semua kamar di dalam gedung ini mungkin akan ikut terhapus.`)) {
       return;
     }
@@ -286,12 +292,14 @@ export default function PropertiesPage() {
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          <button
-            onClick={() => handleOpenModal()}
-            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
-          >
-            <Plus className="w-4 h-4" /> Tambah Properti
-          </button>
+          {!isStaff && (
+            <button
+              onClick={() => handleOpenModal()}
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
+            >
+              <Plus className="w-4 h-4" /> Tambah Properti
+            </button>
+          )}
         </div>
       </div>
 
@@ -461,21 +469,25 @@ export default function PropertiesPage() {
                         <Share2 className="w-3.5 h-3.5" />
                         <span className="hidden sm:inline">Bagikan</span>
                       </button>
-                      <button
-                        onClick={() => handleOpenModal(p)}
-                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
-                        title="Edit Data Properti"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        <span>Edit</span>
-                      </button>
-                      <button
-                        onClick={() => handleDelete(p)}
-                        className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
-                        title="Hapus Properti"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isStaff && (
+                        <button
+                          onClick={() => handleOpenModal(p)}
+                          className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition"
+                          title="Edit Data Properti"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Edit</span>
+                        </button>
+                      )}
+                      {isOwner && (
+                        <button
+                          onClick={() => handleDelete(p)}
+                          className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition"
+                          title="Hapus Properti (Khusus Owner)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

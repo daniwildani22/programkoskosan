@@ -6,12 +6,14 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export type UserRole = 'OWNER' | 'ADMIN' | 'STAFF' | 'USER';
+
 export interface User {
   id: string;
   username: string;
   email?: string;
   full_name: string;
-  role: 'OWNER' | 'ADMIN' | 'STAFF';
+  role: UserRole;
   phone?: string;
   status: 'ACTIVE' | 'INACTIVE';
   last_login?: string;
