@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { supabase, formatRupiah, formatDateDisplay } from '@/lib/supabase';
 import { Contract, Tenant, Room } from '@/types/database';
 import { 
@@ -13,10 +14,14 @@ import {
   X, 
   RefreshCw,
   User,
-  BedDouble
+  BedDouble,
+  Trash2,
+  DoorClosed,
+  AlertTriangle
 } from 'lucide-react';
 
 export default function ContractsPage() {
+  const { isOwner, isAdmin } = useAuth();
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [rooms, setRooms] = useState<Room[]>([]);
@@ -137,6 +142,74 @@ export default function ContractsPage() {
     }
   }
 
+  // Handler Mengakhiri Sewa (Check-Out / Pemutusan Kontrak)
+  async function handleTerminateContract(c: Contract) {
+    const confirmMsg = `Akhiri sewa untuk kontrak "${c.contract_number}"?\n\nPenghuni: ${c.tenant?.full_name || '-'}\nKamar: ${c.room?.room_code || '-'}\n\nSetelah diakhiri, status kamar ini akan otomatis dikembalikan menjadi KOSONG dan siap disewakan kembali kepada penghuni baru.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // 1. Update status kontrak menjadi TERMINATED
+      const { error: cErr } = await supabase
+        .from('contracts')
+        .update({
+          status: 'TERMINATED',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', c.id);
+      if (cErr) throw cErr;
+
+      // 2. Kembalikan status kamar menjadi KOSONG
+      if (c.room_id) {
+        await supabase
+          .from('rooms')
+          .update({
+            status: 'KOSONG',
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', c.room_id);
+      }
+
+      // 3. Perbarui state lokal
+      setContracts(prev => prev.map(item => item.id === c.id ? { ...item, status: 'TERMINATED' } : item));
+      alert(`Sewa untuk kamar ${c.room?.room_code || ''} berhasil diakhiri. Status kamar kini kembali KOSONG.`);
+    } catch (err: any) {
+      alert('Gagal mengakhiri sewa: ' + err.message);
+    }
+  }
+
+  // Handler Hapus Kontrak (Owner / Admin)
+  async function handleDeleteContract(c: Contract) {
+    if (!isOwner && !isAdmin) {
+      alert('Hanya akun Owner atau Admin yang berwenang menghapus data kontrak.');
+      return;
+    }
+
+    const confirmMsg = `Hapus permanen kontrak "${c.contract_number}" (Penghuni: ${c.tenant?.full_name || '-'})?\n\nPerhatian: Seluruh data tagihan, pembayaran, dan deposit terkait kontrak ini akan ikut dibersihkan. Status kamar akan dikembalikan ke KOSONG jika saat ini masih terisi.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // 1. Bersihkan pembayaran & deposit & tagihan terkait kontrak ini terlebih dahulu
+      await supabase.from('payments').delete().eq('contract_id', c.id);
+      await supabase.from('deposits').delete().eq('contract_id', c.id);
+      await supabase.from('rent_bills').delete().eq('contract_id', c.id);
+
+      // 2. Hapus data kontrak
+      const { error: delErr } = await supabase.from('contracts').delete().eq('id', c.id);
+      if (delErr) throw delErr;
+
+      // 3. Jika status kontrak aktif, kosongkan kembali kamar
+      if (c.status === 'ACTIVE' && c.room_id) {
+        await supabase.from('rooms').update({ status: 'KOSONG' }).eq('id', c.room_id);
+      }
+
+      // 4. Update state lokal
+      setContracts(prev => prev.filter(item => item.id !== c.id));
+      alert(`Kontrak ${c.contract_number} berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus kontrak: ' + err.message);
+    }
+  }
+
   const filtered = contracts.filter((c) => {
     const tName = c.tenant?.full_name || '';
     const rCode = c.room?.room_code || '';
@@ -220,47 +293,84 @@ export default function ContractsPage() {
                   <th className="py-4 px-6">Tarif Sewa</th>
                   <th className="py-4 px-6">Deposit</th>
                   <th className="py-4 px-6">Status</th>
+                  <th className="py-4 px-6 text-right">Aksi</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 text-sm">
-                {filtered.map((c) => (
-                  <tr key={c.id} className="hover:bg-slate-50/80 transition">
-                    <td className="py-4 px-6 font-mono font-bold text-slate-800">
-                      {c.contract_number}
-                    </td>
-                    <td className="py-4 px-6 font-semibold text-slate-900">
-                      <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
-                          {c.tenant?.full_name ? c.tenant.full_name[0] : 'P'}
+                {filtered.map((c) => {
+                  const isActive = c.status === 'ACTIVE' || c.status === 'EXTENDED';
+
+                  return (
+                    <tr key={c.id} className="hover:bg-slate-50/80 transition">
+                      <td className="py-4 px-6 font-mono font-bold text-slate-800">
+                        {c.contract_number}
+                      </td>
+                      <td className="py-4 px-6 font-semibold text-slate-900">
+                        <div className="flex items-center gap-2">
+                          <div className="w-7 h-7 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+                            {c.tenant?.full_name ? c.tenant.full_name[0] : 'P'}
+                          </div>
+                          <span>{c.tenant?.full_name || 'Penghuni'}</span>
                         </div>
-                        <span>{c.tenant?.full_name || 'Penghuni'}</span>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-semibold text-xs border border-emerald-100">
-                        <BedDouble className="w-3.5 h-3.5" />
-                        {c.room?.room_code || 'Kamar'}
-                      </span>
-                    </td>
-                    <td className="py-4 px-6 text-slate-600 text-xs">
-                      <div>Mulai: <strong>{formatDateDisplay(c.start_date)}</strong></div>
-                      <div>Sampai: <strong>{formatDateDisplay(c.end_date)}</strong></div>
-                    </td>
-                    <td className="py-4 px-6 font-bold text-[#064e3b]">
-                      {formatRupiah(c.rent_price)}
-                    </td>
-                    <td className="py-4 px-6 text-slate-700 font-medium">
-                      {formatRupiah(c.deposit_amount)}
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
-                        c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {c.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-semibold text-xs border border-emerald-100">
+                          <BedDouble className="w-3.5 h-3.5" />
+                          {c.room?.room_code || 'Kamar'}
+                        </span>
+                      </td>
+                      <td className="py-4 px-6 text-slate-600 text-xs">
+                        <div>Mulai: <strong>{formatDateDisplay(c.start_date)}</strong></div>
+                        <div>Sampai: <strong>{formatDateDisplay(c.end_date)}</strong></div>
+                      </td>
+                      <td className="py-4 px-6 font-bold text-[#064e3b]">
+                        {formatRupiah(c.rent_price)}
+                      </td>
+                      <td className="py-4 px-6 text-slate-700 font-medium">
+                        {formatRupiah(c.deposit_amount)}
+                      </td>
+                      <td className="py-4 px-6">
+                        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full uppercase ${
+                          c.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' :
+                          c.status === 'TERMINATED' ? 'bg-amber-100 text-amber-800' :
+                          c.status === 'EXTENDED' ? 'bg-blue-100 text-blue-800' :
+                          'bg-slate-100 text-slate-600'
+                        }`}>
+                          {c.status === 'ACTIVE' ? 'Aktif' :
+                           c.status === 'TERMINATED' ? 'Diakhiri' :
+                           c.status === 'EXTENDED' ? 'Diperpanjang' : 'Kedaluwarsa'}
+                        </span>
+                      </td>
+                      {/* AKSI KONTRAK */}
+                      <td className="py-4 px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Tombol Akhiri Sewa Lebih Awal */}
+                          {isActive && (
+                            <button
+                              onClick={() => handleTerminateContract(c)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 font-bold text-xs transition shadow-sm"
+                              title="Akhiri Masa Sewa & Kosongkan Kamar"
+                            >
+                              <DoorClosed className="w-3.5 h-3.5 text-amber-600" />
+                              <span className="hidden sm:inline">Akhiri Sewa</span>
+                            </button>
+                          )}
+
+                          {/* Tombol Hapus Kontrak (Owner / Admin) */}
+                          {(isOwner || isAdmin) && (
+                            <button
+                              onClick={() => handleDeleteContract(c)}
+                              className="p-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 transition shadow-sm"
+                              title="Hapus Kontrak (Owner/Admin)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

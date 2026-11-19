@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
+import { useAuth } from '@/context/AuthContext';
 import { supabase, formatRupiah, formatDateDisplay } from '@/lib/supabase';
 import { RentBill, Payment, CashBankAccount } from '@/types/database';
 import { 
@@ -12,18 +13,20 @@ import {
   AlertCircle, 
   RefreshCw, 
   X, 
-  CreditCard,
-  Printer,
-  MessageSquare,
-  AlertTriangle,
-  Building2,
-  Share2,
-  Calendar,
-  Check,
-  Send
+  CreditCard, 
+  Printer, 
+  MessageSquare, 
+  AlertTriangle, 
+  Building2, 
+  Share2, 
+  Calendar, 
+  Check, 
+  Send,
+  Trash2
 } from 'lucide-react';
 
 export default function PaymentsPage() {
+  const { isOwner, isAdmin } = useAuth();
   const [bills, setBills] = useState<RentBill[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [accounts, setAccounts] = useState<CashBankAccount[]>([]);
@@ -305,6 +308,92 @@ _Manajemen Kos Finora_`;
     }
   }
 
+  // Handler Hapus Tagihan (Owner / Admin)
+  async function handleDeleteBill(bill: RentBill) {
+    if (!isOwner && !isAdmin) {
+      alert('Hanya akun Owner atau Admin yang berhak menghapus data tagihan.');
+      return;
+    }
+
+    const confirmMsg = `Hapus data tagihan "${bill.bill_number}" (${bill.period_name}) untuk penghuni "${bill.tenant?.full_name || 'Penghuni'}"?\n\nPerhatian: Seluruh riwayat pembayaran yang terkait tagihan ini juga akan ikut dibersihkan.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // 1. Hapus pembayaran terkait tagihan ini terlebih dahulu
+      await supabase.from('payments').delete().eq('bill_id', bill.id);
+
+      // 2. Hapus tagihan
+      const { error } = await supabase.from('rent_bills').delete().eq('id', bill.id);
+      if (error) throw error;
+
+      // 3. Update state lokal
+      setBills(prev => prev.filter(item => item.id !== bill.id));
+      setPayments(prev => prev.filter(item => item.bill_id !== bill.id));
+      alert(`Tagihan ${bill.bill_number} berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus tagihan: ' + err.message);
+    }
+  }
+
+  // Handler Hapus Riwayat Pembayaran (Owner / Admin)
+  async function handleDeletePayment(payment: Payment) {
+    if (!isOwner && !isAdmin) {
+      alert('Hanya akun Owner atau Admin yang berhak menghapus riwayat pembayaran.');
+      return;
+    }
+
+    const confirmMsg = `Hapus riwayat pembayaran "${payment.payment_number}" sebesar ${formatRupiah(payment.amount)}?\n\nJika pembayaran ini terkait dengan tagihan, sisa tagihan akan otomatis dikembalikan seperti semula.`;
+    if (!confirm(confirmMsg)) return;
+
+    try {
+      // 1. Jika terhubung dengan tagihan, pulihkan sisa tagihan
+      if (payment.bill_id) {
+        const targetBill = bills.find(b => b.id === payment.bill_id);
+        if (targetBill) {
+          const newPaid = Math.max(0, Number(targetBill.paid_amount || 0) - Number(payment.amount));
+          const newRemaining = Math.max(0, Number(targetBill.total_amount || 0) - newPaid);
+          const newStatus = newPaid <= 0 ? 'UNPAID' : (newRemaining > 0 ? 'PARTIAL' : 'PAID');
+
+          await supabase.from('rent_bills').update({
+            paid_amount: newPaid,
+            remaining_amount: newRemaining,
+            status: newStatus
+          }).eq('id', targetBill.id);
+
+          setBills(prev => prev.map(b => b.id === targetBill.id ? {
+            ...b,
+            paid_amount: newPaid,
+            remaining_amount: newRemaining,
+            status: newStatus
+          } : b));
+        }
+      }
+
+      // 2. Jika rekening kas/bank terhubung, sesuaikan kembali saldo
+      if (payment.account_id) {
+        const targetAcc = accounts.find(a => a.id === payment.account_id);
+        if (targetAcc) {
+          const newBal = Math.max(0, Number(targetAcc.current_balance || 0) - Number(payment.amount));
+          await supabase.from('cash_bank_accounts').update({
+            current_balance: newBal
+          }).eq('id', targetAcc.id);
+
+          setAccounts(prev => prev.map(a => a.id === targetAcc.id ? { ...a, current_balance: newBal } : a));
+        }
+      }
+
+      // 3. Hapus data pembayaran dari database
+      const { error } = await supabase.from('payments').delete().eq('id', payment.id);
+      if (error) throw error;
+
+      // 4. Update state pembayaran
+      setPayments(prev => prev.filter(p => p.id !== payment.id));
+      alert(`Riwayat pembayaran ${payment.payment_number} berhasil dihapus.`);
+    } catch (err: any) {
+      alert('Gagal menghapus pembayaran: ' + err.message);
+    }
+  }
+
   // Hitung jumlah tagihan terlambat / mendekati jatuh tempo
   const urgentBills = bills.filter(b => {
     if (b.status === 'PAID') return false;
@@ -538,6 +627,18 @@ _Manajemen Kos Finora_`;
                                 <span>Bayar</span>
                               </button>
                             )}
+
+                            {/* Tombol Hapus Tagihan (Owner/Admin) */}
+                            {(isOwner || isAdmin) && (
+                              <button
+                                onClick={() => handleDeleteBill(b)}
+                                className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs transition flex items-center gap-1 shadow-sm"
+                                title="Hapus Tagihan Ini (Owner/Admin)"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">Hapus</span>
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -592,24 +693,37 @@ _Manajemen Kos Finora_`;
                         {p.received_by || 'Admin'}
                       </td>
                       <td className="py-4 px-6 text-right">
-                        <button
-                          onClick={() => {
-                            // Cetak kuitansi dari payment
-                            if (p.bill_id) {
-                              const relatedBill = bills.find(b => b.id === p.bill_id);
-                              if (relatedBill) {
-                                openReceiptModal(relatedBill);
-                                return;
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => {
+                              // Cetak kuitansi dari payment
+                              if (p.bill_id) {
+                                const relatedBill = bills.find(b => b.id === p.bill_id);
+                                if (relatedBill) {
+                                  openReceiptModal(relatedBill);
+                                  return;
+                                }
                               }
-                            }
-                            // Fallback jika pembayaran lepas
-                            alert(`Pembayaran ${p.payment_number} sebesar ${formatRupiah(p.amount)} berhasil diverifikasi.`);
-                          }}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
-                        >
-                          <Printer className="w-3.5 h-3.5" />
-                          <span>Cetak Kuitansi</span>
-                        </button>
+                              // Fallback jika pembayaran lepas
+                              alert(`Pembayaran ${p.payment_number} sebesar ${formatRupiah(p.amount)} berhasil diverifikasi.`);
+                            }}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition shadow-sm"
+                          >
+                            <Printer className="w-3.5 h-3.5" />
+                            <span>Cetak</span>
+                          </button>
+
+                          {(isOwner || isAdmin) && (
+                            <button
+                              onClick={() => handleDeletePayment(p)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-rose-200 hover:bg-rose-50 text-rose-600 font-bold text-xs transition shadow-sm"
+                              title="Hapus Riwayat Pembayaran Ini (Owner/Admin)"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Hapus</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
