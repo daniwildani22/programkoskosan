@@ -44,7 +44,8 @@
   header, aside, nav, button, .no-print {
     display: none !important;
   }
-  #printable-receipt-area {
+  #printable-receipt-area,
+  #printable-contract-receipt {
     position: absolute;
     left: 0;
     top: 0;
