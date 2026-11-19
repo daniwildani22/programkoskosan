@@ -237,11 +237,11 @@ export default function PropertiesPage() {
 
   function getShareMessage(prop: Property) {
     const mapsLink = getEffectiveMapsUrl(prop);
-    return `📍 *LOKASI KOS: ${prop.name.toUpperCase()}*\n\n` +
-      `🏠 *Alamat*: ${prop.address}\n` +
-      (prop.phone ? `📞 *Kontak/WA*: ${prop.phone}\n` : '') +
-      `🗺️ *Google Maps*: ${mapsLink}\n\n` +
-      `Silakan klik tautan Google Maps di atas untuk navigasi dan petunjuk arah langsung menuju lokasi kos kami. Kami tunggu kehadirannya! 🙏`;
+    return `?? *LOKASI KOS: ${prop.name.toUpperCase()}*\n\n` +
+      `?? *Alamat*: ${prop.address}\n` +
+      (prop.phone ? `?? *Kontak/WA*: ${prop.phone}\n` : '') +
+      `??? *Google Maps*: ${mapsLink}\n\n` +
+      `Silakan klik tautan Google Maps di atas untuk navigasi dan petunjuk arah langsung menuju lokasi kos kami. Kami tunggu kehadirannya! ??`;
   }
 
   function handleCopyMapsLink(prop: Property) {

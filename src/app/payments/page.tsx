@@ -274,7 +274,7 @@ export default function PaymentsPage() {
   // Generate Info Rekening Bank untuk Pesan WhatsApp
   function getBankAccountsText() {
     if (!accounts || accounts.length === 0) return 'Silakan hubungi pemilik kos untuk nomor rekening transfer.';
-    return accounts.map(a => `• *${a.bank_name}*: \`${a.account_number}\` a.n ${a.holder_name}`).join('\n');
+    return accounts.map(a => `. *${a.bank_name}*: \`${a.account_number}\` a.n ${a.holder_name}`).join('\n');
   }
 
   // 1. KIRIM STRUK TAGIHAN / PENGINGAT JATUH TEMPO VIA WA
@@ -290,26 +290,26 @@ export default function PaymentsPage() {
     const isToday = dueStatus.type === 'TODAY';
 
     let headerNote = 'PEMBERITAHUAN TAGIHAN SEWA KOS';
-    if (isOverdue) headerNote = '⚠️ PENGINGAT TUNGGAKAN JATUH TEMPO SEWA KOS';
-    if (isToday) headerNote = '⏰ PENGINGAT JATUH TEMPO SEWA KOS (HARI INI)';
+    if (isOverdue) headerNote = '?? PENGINGAT TUNGGAKAN JATUH TEMPO SEWA KOS';
+    if (isToday) headerNote = '? PENGINGAT JATUH TEMPO SEWA KOS (HARI INI)';
 
     const msg = `*${headerNote}*
 Halo *${b.tenant?.full_name || 'Penghuni'}*,
 Semoga dalam keadaan sehat selalu.
 
 Berikut kami sampaikan rincian tagihan sewa kos Anda:
-📄 *No. Invoice:* ${b.bill_number}
-🚪 *Kamar:* ${b.room?.room_code || '-'}
-🗓️ *Periode:* ${b.period_name}
-💰 *Total Tagihan:* ${formatRupiah(b.total_amount)}
-⚠️ *Sisa Pembayaran:* ${formatRupiah(b.remaining_amount || b.total_amount)}
-⏰ *Jatuh Tempo:* ${formatDateDisplay(b.due_date)} (${dueStatus.label})
+?? *No. Invoice:* ${b.bill_number}
+?? *Kamar:* ${b.room?.room_code || '-'}
+??? *Periode:* ${b.period_name}
+?? *Total Tagihan:* ${formatRupiah(b.total_amount)}
+?? *Sisa Pembayaran:* ${formatRupiah(b.remaining_amount || b.total_amount)}
+? *Jatuh Tempo:* ${formatDateDisplay(b.due_date)} (${dueStatus.label})
 
 *Rekening Pembayaran Resmi:*
 ${getBankAccountsText()}
 
 Mohon untuk segera melakukan transfer pembayaran dan konfirmasikan bukti transfer melalui chat ini.
-Terima kasih atas kerja samanya! 🙏
+Terima kasih atas kerja samanya! ??
 _Manajemen Kos Finora_`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -324,19 +324,19 @@ _Manajemen Kos Finora_`;
     }
 
     const msg = `*KUITANSI RESMI PEMBAYARAN SEWA KOS*
-STATUS: ✅ *LUNAS (PAID)*
+STATUS: ? *LUNAS (PAID)*
 
 Terima kasih, pembayaran sewa kos Anda telah kami terima dan diverifikasi secara sah:
-📄 *No. Invoice / Kuitansi:* ${b.bill_number}
-👤 *Nama Penghuni:* ${b.tenant?.full_name || '-'}
-🚪 *Kamar:* ${b.room?.room_code || '-'}
-🗓️ *Periode Sewa:* ${b.period_name}
-💵 *Nominal Dilunasi:* ${formatRupiah(b.total_amount)}
-📅 *Status:* Tuntas / Lunas
+?? *No. Invoice / Kuitansi:* ${b.bill_number}
+?? *Nama Penghuni:* ${b.tenant?.full_name || '-'}
+?? *Kamar:* ${b.room?.room_code || '-'}
+??? *Periode Sewa:* ${b.period_name}
+?? *Nominal Dilunasi:* ${formatRupiah(b.total_amount)}
+?? *Status:* Tuntas / Lunas
 
 Semoga betah dan nyaman tinggal di kos kami!
 Jika membutuhkan bantuan fasilitas atau keluhan kamar, silakan hubungi pengelola.
-Terima kasih! 🙏
+Terima kasih! ??
 _Manajemen Kos Finora_`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -390,19 +390,19 @@ _Manajemen Kos Finora_`;
     }
 
     const msg = `*KUITANSI RESMI PEMBAYARAN SEWA KOS*
-STATUS: ✅ *DITERIMA (LUNAS)*
+STATUS: ? *DITERIMA (LUNAS)*
 
 Terima kasih, pembayaran telah kami terima dan tercatat:
-📄 *No. Transaksi:* ${p.payment_number}
-👤 *Penghuni:* ${p.tenant?.full_name || '-'}
-🚪 *Kamar:* ${p.room?.room_code || '-'}
-💵 *Nominal Dibayar:* ${formatRupiah(p.amount)}
-💳 *Metode Pembayaran:* ${p.payment_method}
-📅 *Tanggal Bayar:* ${formatDateDisplay(p.payment_date)}
-📝 *Keterangan:* ${p.notes || 'Pembayaran sewa'}
-👤 *Diterima Oleh:* ${p.received_by || 'Owner / Pengelola'}
+?? *No. Transaksi:* ${p.payment_number}
+?? *Penghuni:* ${p.tenant?.full_name || '-'}
+?? *Kamar:* ${p.room?.room_code || '-'}
+?? *Nominal Dibayar:* ${formatRupiah(p.amount)}
+?? *Metode Pembayaran:* ${p.payment_method}
+?? *Tanggal Bayar:* ${formatDateDisplay(p.payment_date)}
+?? *Keterangan:* ${p.notes || 'Pembayaran sewa'}
+?? *Diterima Oleh:* ${p.received_by || 'Owner / Pengelola'}
 
-Terima kasih atas kerja samanya! 🙏
+Terima kasih atas kerja samanya! ??
 _Manajemen Kos Finora_`;
 
     window.open(`https://wa.me/${phone}?text=${encodeURIComponent(msg)}`, '_blank');
@@ -1041,7 +1041,7 @@ _Manajemen Kos Finora_`;
                   <div>
                     <h2 className="text-xl font-black text-slate-900 tracking-tight leading-tight">KOS GRAHA ASRI</h2>
                     <p className="text-xs text-slate-500 font-medium">Finora Cloud Property Management</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">Yogyakarta, Indonesia • WA: 0812-3456-7890</p>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Yogyakarta, Indonesia . WA: 0812-3456-7890</p>
                   </div>
                 </div>
 
@@ -1138,7 +1138,7 @@ _Manajemen Kos Finora_`;
                 <div className="flex items-center gap-3">
                   {receiptData.isPaid ? (
                     <div className="border-4 border-emerald-600 text-emerald-700 font-black text-lg px-4 py-1.5 rounded-xl uppercase tracking-widest transform -rotate-6 shadow-sm">
-                      ✓ LUNAS
+                      ? LUNAS
                     </div>
                   ) : (
                     <div className="border-4 border-amber-600 text-amber-700 font-black text-lg px-4 py-1.5 rounded-xl uppercase tracking-widest transform -rotate-6 shadow-sm">

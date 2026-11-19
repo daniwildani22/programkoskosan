@@ -409,7 +409,7 @@ export default function RoomsPage() {
                     <div className="flex items-center justify-between">
                       <h3 className="font-bold text-lg text-slate-900">{r.name}</h3>
                       <span className="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">
-                        Lt. {r.floor} • {r.dimensions || '3x4m'}
+                        Lt. {r.floor} . {r.dimensions || '3x4m'}
                       </span>
                     </div>
 

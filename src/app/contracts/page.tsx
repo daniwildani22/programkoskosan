@@ -262,38 +262,38 @@ export default function ContractsPage() {
     let msg = '';
     if (type === 'PAID') {
       msg = `*KUITANSI RESMI PELUNASAN SEWA KOS*
-STATUS: ✅ *LUNAS (PAID)*
+STATUS: ? *LUNAS (PAID)*
 
 Kepada Yth. Sdr/i *${c.tenant?.full_name || 'Penghuni'}*,
 Pembayaran sewa kamar Anda telah kami terima dan terkonfirmasi lunas:
 
-📄 *No. Kontrak:* ${c.contract_number}
-🚪 *Unit Kamar:* ${c.room?.room_code || '-'}
-🗓️ *Masa Sewa:* ${formatDateDisplay(c.start_date)} s/d ${formatDateDisplay(c.end_date)}
-💵 *Tarif Sewa Kamar:* ${formatRupiah(c.rent_price)}
-🛡️ *Uang Jaminan (Deposit):* ${formatRupiah(c.deposit_amount)}
-💰 *Total Pelunasan:* ${formatRupiah(totalNominal)}
+?? *No. Kontrak:* ${c.contract_number}
+?? *Unit Kamar:* ${c.room?.room_code || '-'}
+??? *Masa Sewa:* ${formatDateDisplay(c.start_date)} s/d ${formatDateDisplay(c.end_date)}
+?? *Tarif Sewa Kamar:* ${formatRupiah(c.rent_price)}
+??? *Uang Jaminan (Deposit):* ${formatRupiah(c.deposit_amount)}
+?? *Total Pelunasan:* ${formatRupiah(totalNominal)}
 
 Status: *LUNAS & RESMI*
-Terima kasih atas kerja sama dan kepercayaannya tinggal bersama kami. Semoga nyaman dan berkah! 🙏
+Terima kasih atas kerja sama dan kepercayaannya tinggal bersama kami. Semoga nyaman dan berkah! ??
 _Manajemen Kos Finora Cloud_`;
     } else {
       msg = `*SURAT TAGIHAN SEWA KAMAR KOS*
-STATUS: ⏳ *MENUNGGU PEMBAYARAN*
+STATUS: ? *MENUNGGU PEMBAYARAN*
 
 Kepada Yth. Sdr/i *${c.tenant?.full_name || 'Penghuni'}*,
 Berikut adalah rincian tagihan sewa kamar kos Anda:
 
-📄 *No. Kontrak:* ${c.contract_number}
-🚪 *Unit Kamar:* ${c.room?.room_code || '-'}
-🗓️ *Masa Sewa:* ${formatDateDisplay(c.start_date)} s/d ${formatDateDisplay(c.end_date)}
-💵 *Biaya Sewa Kamar:* ${formatRupiah(c.rent_price)}
-🛡️ *Uang Jaminan (Deposit):* ${formatRupiah(c.deposit_amount)}
-💰 *Total Tagihan:* ${formatRupiah(totalNominal)}
+?? *No. Kontrak:* ${c.contract_number}
+?? *Unit Kamar:* ${c.room?.room_code || '-'}
+??? *Masa Sewa:* ${formatDateDisplay(c.start_date)} s/d ${formatDateDisplay(c.end_date)}
+?? *Biaya Sewa Kamar:* ${formatRupiah(c.rent_price)}
+??? *Uang Jaminan (Deposit):* ${formatRupiah(c.deposit_amount)}
+?? *Total Tagihan:* ${formatRupiah(totalNominal)}
 
 Mohon melakukan pembayaran sebelum tanggal jatuh tempo.
 Jika telah melakukan transfer, silakan kirimkan bukti transfer ke kontak pengelola.
-Terima kasih! 🙏
+Terima kasih! ??
 _Manajemen Kos Finora Cloud_`;
     }
 

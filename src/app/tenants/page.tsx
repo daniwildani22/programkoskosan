@@ -210,7 +210,7 @@ export default function TenantsPage() {
         <div>
           <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Supabase PostgreSQL • Total: <strong>{tenants.length}</strong> penghuni
+            Supabase PostgreSQL . Total: <strong>{tenants.length}</strong> penghuni
           </span>
         </div>
 

@@ -147,7 +147,7 @@ export default function Sidebar() {
       <div className="px-3 pb-3 space-y-1.5">
         <button
           onClick={() => {
-            alert('📲 CARA MEMASANG APLIKASI DI HP ANDROID:\n\n1. Buka tautan https://programkoskosan.vercel.app melalui Google Chrome di HP Anda.\n2. Klik tombol "Pasang" yang muncul di layar, ATAU klik menu titik tiga (⋮) di pojok kanan atas Chrome.\n3. Pilih "Tambahkan ke Layar Utama" / "Instal Aplikasi".\n4. Selesai! Aplikasi Kos Finora akan langsung muncul di beranda HP Anda seperti aplikasi Play Store!');
+            alert('?? CARA MEMASANG APLIKASI DI HP ANDROID:\n\n1. Buka tautan https://programkoskosan.vercel.app melalui Google Chrome di HP Anda.\n2. Klik tombol "Pasang" yang muncul di layar, ATAU klik menu titik tiga (?) di pojok kanan atas Chrome.\n3. Pilih "Tambahkan ke Layar Utama" / "Instal Aplikasi".\n4. Selesai! Aplikasi Kos Finora akan langsung muncul di beranda HP Anda seperti aplikasi Play Store!');
           }}
           className="w-full flex items-center gap-3 px-3.5 py-2 rounded-xl font-medium text-xs text-emerald-200 hover:bg-emerald-800/40 hover:text-white transition-all border border-emerald-500/20"
         >

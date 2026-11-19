@@ -229,7 +229,7 @@ export default function FinancePage() {
                   <div className="mt-2 text-xs text-slate-500 space-y-1">
                     <div className="flex items-center gap-1.5 font-medium text-slate-700">
                       <CreditCard className="w-3.5 h-3.5 text-slate-400" />
-                      <span>{acc.bank_name || '-'}</span> • 
+                      <span>{acc.bank_name || '-'}</span> . 
                       <span className="font-mono font-bold text-slate-900 bg-slate-50 px-1 rounded border border-slate-100">
                         {acc.account_number || '-'}
                       </span>

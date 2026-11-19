@@ -30,11 +30,11 @@ function runFullMigrationToSupabase() {
   var key = SUPABASE_MIGRATION_CONFIG.SUPABASE_SERVICE_KEY;
 
   if (!url || url.indexOf("YOUR_PROJECT") !== -1 || !key || key.indexOf("YOUR_") !== -1) {
-    Logger.log("❌ ERROR: Silakan isi SUPABASE_URL dan SUPABASE_SERVICE_KEY terlebih dahulu pada file ini!");
+    Logger.log("? ERROR: Silakan isi SUPABASE_URL dan SUPABASE_SERVICE_KEY terlebih dahulu pada file ini!");
     return "Error: Konfigurasi Supabase belum diisi.";
   }
 
-  Logger.log("🚀 MEMULAI PROSES MIGRASI DATA DARI GOOGLE SPREADSHEET KE SUPABASE...");
+  Logger.log("?? MEMULAI PROSES MIGRASI DATA DARI GOOGLE SPREADSHEET KE SUPABASE...");
   var report = {};
 
   var validPropertyIds = {};
@@ -263,12 +263,12 @@ function runFullMigrationToSupabase() {
       };
     });
 
-    Logger.log("✅ MIGRASI SELESAI DENGAN SUKSES!");
+    Logger.log("? MIGRASI SELESAI DENGAN SUKSES!");
     Logger.log(JSON.stringify(report, null, 2));
     return report;
 
   } catch (err) {
-    Logger.log("❌ GAGAL MIGRASI: " + err.message);
+    Logger.log("? GAGAL MIGRASI: " + err.message);
     throw err;
   }
 }
@@ -297,12 +297,12 @@ function migrateTable(sheetName, supabaseTableName, transformFn) {
     try {
       rawData = Database.getAll(sheetName);
     } catch (e) {
-      Logger.log("ℹ️ Sheet '" + sheetName + "' tidak dapat dibaca: " + e.message);
+      Logger.log("?? Sheet '" + sheetName + "' tidak dapat dibaca: " + e.message);
       return 0;
     }
 
     if (!rawData || rawData.length === 0) {
-      Logger.log("ℹ️ Sheet '" + sheetName + "' kosong. Dilewati.");
+      Logger.log("?? Sheet '" + sheetName + "' kosong. Dilewati.");
       return 0;
     }
 
@@ -333,14 +333,14 @@ function migrateTable(sheetName, supabaseTableName, transformFn) {
     var code = res.getResponseCode();
 
     if (code >= 200 && code < 300) {
-      Logger.log("✅ Berhasil migrasi " + cleanRecords.length + " data ke tabel '" + supabaseTableName + "'.");
+      Logger.log("? Berhasil migrasi " + cleanRecords.length + " data ke tabel '" + supabaseTableName + "'.");
       return cleanRecords.length;
     } else {
-      Logger.log("⚠️ Gagal kirim ke '" + supabaseTableName + "' (HTTP " + code + "): " + res.getContentText());
+      Logger.log("?? Gagal kirim ke '" + supabaseTableName + "' (HTTP " + code + "): " + res.getContentText());
       return 0;
     }
   } catch (e) {
-    Logger.log("⚠️ Error pada tabel '" + supabaseTableName + "': " + e.message);
+    Logger.log("?? Error pada tabel '" + supabaseTableName + "': " + e.message);
     return 0;
   }
 }

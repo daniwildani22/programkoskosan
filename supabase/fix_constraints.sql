@@ -11,6 +11,9 @@ ALTER TABLE IF EXISTS payments DROP CONSTRAINT IF EXISTS payments_payment_number
 ALTER TABLE IF EXISTS properties DROP CONSTRAINT IF EXISTS properties_property_code_key;
 ALTER TABLE IF EXISTS cash_bank_accounts DROP CONSTRAINT IF EXISTS cash_bank_accounts_account_code_key;
 
+-- Tambah kolom google_maps_url jika belum ada
+ALTER TABLE IF EXISTS properties ADD COLUMN IF NOT EXISTS google_maps_url TEXT;
+
 -- 2. Pastikan foreign key aman dengan ON DELETE SET NULL atau CASCADE
 ALTER TABLE IF EXISTS contracts 
   DROP CONSTRAINT IF EXISTS contracts_tenant_id_fkey,

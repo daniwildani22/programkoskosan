@@ -1,11 +1,11 @@
-# 🏢 Kos Management System (KMS) - Finora Cloud Edition
+# ?? Kos Management System (KMS) - Finora Cloud Edition
 ### Modern Next.js + Tailwind CSS + Supabase (PostgreSQL) + Vercel Deployment
 
 Aplikasi Sistem Manajemen Rumah Kos Terpadu dengan arsitektur modern berbasis **Supabase PostgreSQL** sebagai basis data berkecepatan tinggi dan **Vercel** sebagai serverless hosting global.
 
 ---
 
-## 🚀 Panduan Migrasi Lengkap (4 Tahap)
+## ?? Panduan Migrasi Lengkap (4 Tahap)
 
 ### Tahap 1: Eksekusi Skema Database di Supabase
 1. Buka [Supabase Dashboard](https://supabase.com/dashboard) dan buat project baru (atau gunakan project yang ada).
@@ -16,7 +16,7 @@ Aplikasi Sistem Manajemen Rumah Kos Terpadu dengan arsitektur modern berbasis **
 
 ---
 
-### Tahap 2: Migrasi Data Eksisting (Google Spreadsheet ➡️ Supabase)
+### Tahap 2: Migrasi Data Eksisting (Google Spreadsheet ?? Supabase)
 Jika Anda sudah memiliki data penghuni (misalnya ke-22 data penghuni Anda), kamar, dan rekening bank di Google Spreadsheet:
 1. Buka project Google Apps Script Anda.
 2. Buat file script baru bernama `MigrateToSupabase.gs`.
@@ -63,7 +63,7 @@ Buka browser Anda di `http://localhost:3000`.
 
 ---
 
-## 🎨 Fitur Unggulan Versi Vercel + Supabase:
+## ?? Fitur Unggulan Versi Vercel + Supabase:
 - **Desain Finora Emerald Fintech:** Skema warna hijau zamrud `#064e3b` dan `#059669` dengan sudut kartu membulat modern (*squircle 24px*).
 - **Kolom Foto Penghuni & Avatar Dinamis:** Menampilkan foto profil asli atau inisial avatar Finora jika belum ada foto.
 - **Pencatatan Rekening Manual:** Owner dapat menambah dan mengganti nomor rekening bank transfer, kas tunai, maupun QRIS/E-Wallet kapan saja.

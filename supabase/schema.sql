@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS properties (
     total_floors INT DEFAULT 1,
     photo_url TEXT,
     description TEXT,
+    google_maps_url TEXT,
     status TEXT NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE')),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()

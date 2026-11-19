@@ -123,7 +123,7 @@ export default function DashboardPage() {
                   Portal Staf Lapangan & Penjaga Kos
                 </span>
                 <div className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">
-                  Halo, {currentUser?.full_name || 'Petugas'} 👋
+                  Halo, {currentUser?.full_name || 'Petugas'} ??
                 </div>
                 <p className="text-emerald-100/80 text-xs sm:text-sm mt-1.5 max-w-xl">
                   Silakan periksa ketersediaan kamar, catat meteran listrik & air berkala, serta tindak lanjuti laporan perbaikan fasilitas kos.

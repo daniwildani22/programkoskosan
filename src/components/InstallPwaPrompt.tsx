@@ -29,7 +29,7 @@ export default function InstallPwaPrompt() {
 
   async function handleInstallClick() {
     if (!deferredPrompt) {
-      alert('Untuk memasang di HP Android:\n1. Buka menu titik tiga (⋮) di pojok kanan atas browser Chrome.\n2. Pilih "Tambahkan ke Layar Utama" atau "Instal Aplikasi".\n3. Ikon aplikasi akan langsung muncul di menu HP Anda!');
+      alert('Untuk memasang di HP Android:\n1. Buka menu titik tiga (?) di pojok kanan atas browser Chrome.\n2. Pilih "Tambahkan ke Layar Utama" atau "Instal Aplikasi".\n3. Ikon aplikasi akan langsung muncul di menu HP Anda!');
       return;
     }
 
