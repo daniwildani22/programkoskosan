@@ -2,429 +2,266 @@
 
 import React, { useEffect, useState } from 'react';
 import Navbar from '@/components/Navbar';
-import ImageUpload from '@/components/ImageUpload';
-import { useAuth } from '@/context/AuthContext';
-import { supabase } from '@/lib/supabase';
-import { Tenant } from '@/types/database';
+import { supabase, formatRupiah, formatDateDisplay } from '@/lib/supabase';
+import { MeterReading, Room } from '@/types/database';
 import { 
-  Users, 
-  Search, 
+  Gauge, 
   Plus, 
-  Phone, 
-  DoorOpen, 
-  StickyNote, 
-  Edit3, 
-  Trash2, 
+  Search, 
+  Zap, 
+  Droplets, 
   RefreshCw, 
-  Image as ImageIcon,
-  CheckCircle2,
-  X
+  CheckCircle2, 
+  X,
+  BedDouble
 } from 'lucide-react';
 
-export default function TenantsPage() {
-  const { isOwner, isAdmin, isStaff } = useAuth();
-  const [tenants, setTenants] = useState<Tenant[]>([]);
+export default function UtilitiesPage() {
+  const [readings, setReadings] = useState<MeterReading[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
   const [loading, setLoading] = useState(true);
+  const [utilityTypeFilter, setUtilityTypeFilter] = useState<'ALL' | 'ELECTRICITY' | 'WATER'>('ALL');
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
 
   // Modal State
   const [modalOpen, setModalOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [formData, setFormData] = useState({
-    id: '',
-    full_name: '',
-    phone: '',
-    id_card_number: '',
-    occupation: '',
-    origin_address: '',
-    photo_url: '',
-    notes: '',
-    status: 'ACTIVE' as 'ACTIVE' | 'INACTIVE'
+    room_id: '',
+    reading_date: new Date().toISOString().substring(0, 10),
+    utility_type: 'ELECTRICITY' as 'ELECTRICITY' | 'WATER',
+    previous_meter: 0,
+    current_meter: 0,
+    rate_per_unit: 1500, // Rp 1.500 / kWh
+    notes: ''
   });
 
-  async function loadTenants() {
+  async function loadData() {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [
+        { data: mData, error: mErr },
+        { data: rData }
+      ] = await Promise.all([
+        supabase.from('meter_readings').select('*, room:rooms(*)').order('reading_date', { ascending: false }),
+        supabase.from('rooms').select('*').order('room_code', { ascending: true })
+      ]);
 
-      if (error) throw error;
-      setTenants(data || []);
+      if (mErr) throw mErr;
+      setReadings(mData || []);
+      setRooms(rData || []);
     } catch (err: any) {
-      alert('Gagal memuat data penghuni: ' + err.message);
+      alert('Gagal memuat meteran utilitas: ' + err.message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadTenants();
-
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setModalOpen(false);
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    loadData();
   }, []);
 
-  function openAddModal() {
+  function handleOpenModal() {
+    const firstRoom = rooms[0]?.id || '';
     setFormData({
-      id: '',
-      full_name: '',
-      phone: '',
-      id_card_number: '',
-      occupation: '',
-      origin_address: '',
-      photo_url: '',
-      notes: '',
-      status: 'ACTIVE'
+      room_id: firstRoom,
+      reading_date: new Date().toISOString().substring(0, 10),
+      utility_type: 'ELECTRICITY',
+      previous_meter: 0,
+      current_meter: 0,
+      rate_per_unit: 1500,
+      notes: ''
     });
     setModalOpen(true);
   }
 
-  function openEditModal(t: Tenant) {
-    setFormData({
-      id: t.id,
-      full_name: t.full_name,
-      phone: t.phone,
-      id_card_number: t.id_card_number || '',
-      occupation: t.occupation || '',
-      origin_address: t.origin_address || '',
-      photo_url: t.photo_url || '',
-      notes: t.notes || '',
-      status: (t.status === 'INACTIVE' ? 'INACTIVE' : 'ACTIVE')
-    });
-    setModalOpen(true);
-  }
-
-  async function handleSave(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!formData.full_name || !formData.phone) {
-      return alert('Nama lengkap dan nomor WhatsApp wajib diisi.');
+    if (!formData.room_id) {
+      alert('Silakan pilih kamar terlebih dahulu!');
+      return;
     }
-
     setSaving(true);
     try {
-      if (formData.id) {
-        // Update
-        const { error } = await supabase
-          .from('tenants')
-          .update({
-            full_name: formData.full_name.trim(),
-            phone: formData.phone.trim(),
-            id_card_number: formData.id_card_number.trim(),
-            occupation: formData.occupation.trim(),
-            origin_address: formData.origin_address.trim(),
-            photo_url: formData.photo_url.trim(),
-            notes: formData.notes.trim(),
-            status: formData.status
-          })
-          .eq('id', formData.id);
+      const usage = Math.max(0, Number(formData.current_meter) - Number(formData.previous_meter));
+      const totalCost = usage * Number(formData.rate_per_unit);
+      const newId = 'MTR_' + Date.now();
+      const selectedRoom = rooms.find(r => r.id === formData.room_id);
 
-        if (error) throw error;
-      } else {
-        // Insert
-        const count = tenants.length + 1;
-        const tenantCode = 'PNG-' + ('000' + count).slice(-3);
-        const newId = 'TNT_' + Date.now();
+      const { error } = await supabase
+        .from('meter_readings')
+        .insert([{
+          id: newId,
+          room_id: formData.room_id,
+          property_id: selectedRoom?.property_id || null,
+          reading_date: formData.reading_date,
+          utility_type: formData.utility_type,
+          previous_meter: Number(formData.previous_meter),
+          current_meter: Number(formData.current_meter),
+          usage_amount: usage,
+          rate_per_unit: Number(formData.rate_per_unit),
+          total_cost: totalCost,
+          recorded_by: 'Owner / Administrator',
+          notes: formData.notes
+        }]);
 
-        const { error } = await supabase
-          .from('tenants')
-          .insert({
-            id: newId,
-            tenant_code: tenantCode,
-            full_name: formData.full_name.trim(),
-            phone: formData.phone.trim(),
-            id_card_number: formData.id_card_number.trim(),
-            occupation: formData.occupation.trim(),
-            origin_address: formData.origin_address.trim(),
-            photo_url: formData.photo_url.trim() || `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.full_name)}&background=064e3b&color=ffffff&bold=true`,
-            notes: formData.notes.trim(),
-            status: 'ACTIVE'
-          });
-
-        if (error) throw error;
-      }
-
+      if (error) throw error;
       setModalOpen(false);
-      loadTenants();
+      await loadData();
     } catch (err: any) {
-      alert('Gagal menyimpan penghuni: ' + err.message);
+      alert('Gagal mencatat meteran: ' + err.message);
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDelete(t: Tenant) {
-    if (!isOwner) {
-      alert('Hanya akun Owner (Pemilik Kos) yang memiliki wewenang untuk menghapus data penghuni.');
-      return;
-    }
-    const confirmMsg = `Apakah Anda yakin ingin menghapus data penghuni:\n"${t.full_name}" (${t.tenant_code})?\n\nSemua data kontrak, tagihan, dan riwayat pembayaran terkait penghuni ini akan ikut dihapus secara permanen.`;
-    if (!confirm(confirmMsg)) return;
-
-    try {
-      // Hapus data terkait terlebih dahulu agar tidak memicu foreign key constraint violation
-      await supabase.from('payments').delete().eq('tenant_id', t.id);
-      await supabase.from('deposits').delete().eq('tenant_id', t.id);
-      await supabase.from('rent_bills').delete().eq('tenant_id', t.id);
-      await supabase.from('maintenance_tickets').delete().eq('tenant_id', t.id);
-      await supabase.from('contracts').delete().eq('tenant_id', t.id);
-
-      // Hapus data penghuni
-      const { error } = await supabase.from('tenants').delete().eq('id', t.id);
-      if (error) throw error;
-
-      // Update state tabel langsung
-      setTenants(prev => prev.filter(item => item.id !== t.id));
-      alert(`Data penghuni "${t.full_name}" berhasil dihapus.`);
-    } catch (err: any) {
-      alert('Gagal menghapus data penghuni: ' + err.message);
-    }
-  }
-
-  // Filter Data
-  const filteredTenants = tenants.filter(t => {
-    const q = search.toLowerCase().trim();
-    const matchSearch = !q || 
-      t.full_name.toLowerCase().includes(q) ||
-      t.phone.toLowerCase().includes(q) ||
-      (t.notes || '').toLowerCase().includes(q) ||
-      (t.tenant_code || '').toLowerCase().includes(q);
-
-    const matchStatus = statusFilter === 'ALL' || t.status === statusFilter;
-    return matchSearch && matchStatus;
+  const filtered = readings.filter((r) => {
+    const rCode = r.room?.room_code || '';
+    const matchSearch = rCode.toLowerCase().includes(search.toLowerCase());
+    const matchType = utilityTypeFilter === 'ALL' || r.utility_type === utilityTypeFilter;
+    return matchSearch && matchType;
   });
 
   return (
-    <div>
-      <Navbar title="Database Penghuni Kos" subtitle="Kelola data identitas, foto profil, riwayat sewa, dan kontak penghuni" />
+    <div className="space-y-6">
+      <Navbar title="Meteran Listrik & Air" subtitle="Catat angka meteran utilitas bulanan dan kalkulasi tarif pemakaian" />
 
-      {/* Header Actions */}
-      <div className="mt-6 flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Supabase PostgreSQL . Total: <strong>{tenants.length}</strong> penghuni
-          </span>
+      {/* Action Bar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm">
+        <div className="flex items-center gap-3 flex-1">
+          <div className="relative flex-1 max-w-sm">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Cari kamar..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
+            />
+          </div>
+
+          <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-xl text-xs font-bold">
+            <button
+              onClick={() => setUtilityTypeFilter('ALL')}
+              className={`px-3 py-1.5 rounded-lg transition ${utilityTypeFilter === 'ALL' ? 'bg-[#064e3b] text-white' : 'text-slate-600'}`}
+            >
+              Semua
+            </button>
+            <button
+              onClick={() => setUtilityTypeFilter('ELECTRICITY')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${utilityTypeFilter === 'ELECTRICITY' ? 'bg-[#064e3b] text-white' : 'text-slate-600'}`}
+            >
+              <Zap className="w-3.5 h-3.5" /> Listrik
+            </button>
+            <button
+              onClick={() => setUtilityTypeFilter('WATER')}
+              className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1 ${utilityTypeFilter === 'WATER' ? 'bg-[#064e3b] text-white' : 'text-slate-600'}`}
+            >
+              <Droplets className="w-3.5 h-3.5" /> Air
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={loadTenants}
-            className="p-2.5 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 transition-colors shadow-sm"
-            title="Segarkan Data"
+            onClick={loadData}
+            disabled={loading}
+            className="p-2.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-600 transition"
+            title="Refresh Data"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           </button>
-          {!isStaff && (
-            <button
-              onClick={openAddModal}
-              className="px-5 py-2.5 rounded-2xl bg-[#064e3b] hover:bg-[#047857] text-white font-bold text-sm shadow-md transition-all flex items-center gap-2"
-            >
-              <Plus className="w-4 h-4" /> Tambah Penghuni
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="mt-5 bg-white rounded-3xl p-4 border border-slate-200/80 shadow-sm flex flex-wrap items-center justify-between gap-4">
-        <div className="relative flex-1 min-w-[260px] max-w-md">
-          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Cari nama, nomor WhatsApp, catatan..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 text-sm rounded-2xl bg-slate-50 border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-          />
-        </div>
-
-        <div className="flex items-center gap-3">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-sm px-4 py-2 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700 font-medium focus:outline-none"
+          <button
+            onClick={handleOpenModal}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white font-semibold text-sm shadow-md transition"
           >
-            <option value="ALL">Semua Status</option>
-            <option value="ACTIVE">Aktif Menyewa</option>
-            <option value="INACTIVE">Non-Aktif / Alumni</option>
-          </select>
+            <Plus className="w-4 h-4" /> Catat Meteran Baru
+          </button>
         </div>
       </div>
 
-      {/* Table Section */}
-      <div className="mt-5 bg-white rounded-3xl border border-slate-200/80 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/75 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-4 px-6 w-20">Foto</th>
-                <th className="py-4 px-6">Penghuni</th>
-                <th className="py-4 px-6">No. WhatsApp / Telp</th>
-                <th className="py-4 px-6">Keterangan / Catatan</th>
-                <th className="py-4 px-6">Pekerjaan & Asal</th>
-                <th className="py-4 px-6">Status</th>
-                <th className="py-4 px-6 text-right">Aksi</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-              {loading ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-emerald-600" />
-                    Memuat database penghuni...
-                  </td>
+      {/* Main Table */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        {loading ? (
+          <div className="p-12 text-center text-slate-400">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-3 text-emerald-600" />
+            Memuat data meteran...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="p-12 text-center text-slate-400">
+            <Gauge className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+            <p className="font-semibold text-slate-700">Belum ada pencatatan meteran</p>
+            <p className="text-xs text-slate-400 mt-1">Klik tombol 'Catat Meteran Baru' untuk menginput angka meteran listrik atau air.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="py-4 px-6">Tanggal Catat</th>
+                  <th className="py-4 px-6">Kamar</th>
+                  <th className="py-4 px-6">Jenis Utilitas</th>
+                  <th className="py-4 px-6">Meter Awal</th>
+                  <th className="py-4 px-6">Meter Akhir</th>
+                  <th className="py-4 px-6">Pemakaian</th>
+                  <th className="py-4 px-6">Tarif / Satuan</th>
+                  <th className="py-4 px-6">Total Tagihan</th>
                 </tr>
-              ) : filteredTenants.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400">
-                    <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                    <p className="font-semibold text-slate-600">Tidak ada data penghuni ditemukan.</p>
-                    <p className="text-xs text-slate-400 mt-1">Coba sesuaikan kata kunci pencarian Anda.</p>
-                  </td>
-                </tr>
-              ) : (
-                filteredTenants.map((t) => {
-                  const cleanPhone = t.phone.replace(/[^0-9]/g, '');
-                  const waNumber = cleanPhone.startsWith('0') ? '62' + cleanPhone.substring(1) : cleanPhone;
-                  const initials = t.full_name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase();
-
-                  return (
-                    <tr key={t.id} className="hover:bg-slate-50/60 transition-colors">
-                      {/* FOTO COLUMN */}
-                      <td className="py-4 px-6">
-                        {t.photo_url ? (
-                          <img
-                            src={t.photo_url}
-                            alt={t.full_name}
-                            className="w-11 h-11 rounded-2xl object-cover border border-slate-200 shadow-sm"
-                            onError={(e) => {
-                              (e.target as any).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(t.full_name)}&background=064e3b&color=ffffff&bold=true`;
-                            }}
-                          />
-                        ) : (
-                          <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#064e3b] to-[#059669] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-                            {initials}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* NAMA & KODE */}
-                      <td className="py-4 px-6">
-                        <div className="font-bold text-slate-800">{t.full_name}</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
-                          <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-mono text-[11px] font-semibold">
-                            {t.tenant_code}
-                          </span>
-                          {t.id_card_number && <span>NIK: {t.id_card_number}</span>}
-                        </div>
-                      </td>
-
-                      {/* NO WA */}
-                      <td className="py-4 px-6">
-                        <a
-                          href={`https://wa.me/${waNumber}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-semibold text-xs border border-emerald-200 transition-colors"
-                        >
-                          <Phone className="w-3.5 h-3.5" />
-                          {t.phone}
-                        </a>
-                      </td>
-
-                      {/* KETERANGAN / CATATAN */}
-                      <td className="py-4 px-6 max-w-xs">
-                        {t.notes ? (
-                          <div className="text-xs text-slate-700 bg-amber-50/60 border border-amber-200/60 p-2 rounded-xl flex items-start gap-1.5">
-                            <StickyNote className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                            <span>{t.notes}</span>
-                          </div>
-                        ) : (
-                          <span className="text-slate-300 text-xs">-</span>
-                        )}
-                      </td>
-
-                      {/* PEKERJAAN & ASAL */}
-                      <td className="py-4 px-6 text-xs text-slate-600">
-                        <div className="font-semibold">{t.occupation || '-'}</div>
-                        <div className="text-slate-400 mt-0.5">{t.origin_address || '-'}</div>
-                      </td>
-
-                      {/* STATUS */}
-                      <td className="py-4 px-6">
-                        {t.status === 'ACTIVE' ? (
-                          <span className="kms-badge kms-badge-success">Aktif</span>
-                        ) : (
-                          <span className="kms-badge kms-badge-secondary">Non-Aktif</span>
-                        )}
-                      </td>
-
-                      {/* AKSI */}
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {!isStaff && (
-                            <button
-                              onClick={() => openEditModal(t)}
-                              className="p-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-600 transition-colors shadow-sm"
-                              title="Edit Data Penghuni"
-                            >
-                              <Edit3 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {isOwner && (
-                            <button
-                              onClick={() => handleDelete(t)}
-                              className="p-2 rounded-xl border border-rose-200 hover:bg-rose-50 text-rose-600 transition-colors shadow-sm"
-                              title="Hapus Penghuni (Khusus Owner)"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          )}
-                          {isStaff && (
-                            <span className="text-xs text-slate-400 bg-slate-100 px-2.5 py-1 rounded-lg font-medium">
-                              Lihat Saja
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-sm">
+                {filtered.map((m) => (
+                  <tr key={m.id} className="hover:bg-slate-50/80 transition">
+                    <td className="py-4 px-6 text-slate-600 text-xs">
+                      {formatDateDisplay(m.reading_date)}
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-semibold text-xs border border-emerald-100">
+                        <BedDouble className="w-3.5 h-3.5" />
+                        {m.room?.room_code || 'Kamar'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-md ${
+                        m.utility_type === 'ELECTRICITY' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                      }`}>
+                        {m.utility_type === 'ELECTRICITY' ? <Zap className="w-3.5 h-3.5" /> : <Droplets className="w-3.5 h-3.5" />}
+                        {m.utility_type === 'ELECTRICITY' ? 'Listrik' : 'Air'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-6 font-mono text-slate-600 text-xs">{m.previous_meter}</td>
+                    <td className="py-4 px-6 font-mono text-slate-900 font-bold text-xs">{m.current_meter}</td>
+                    <td className="py-4 px-6 font-bold text-slate-800 text-xs">
+                      {m.usage_amount} {m.utility_type === 'ELECTRICITY' ? 'kWh' : 'm³'}
+                    </td>
+                    <td className="py-4 px-6 text-slate-500 text-xs">{formatRupiah(m.rate_per_unit)}</td>
+                    <td className="py-4 px-6 font-bold text-[#064e3b]">{formatRupiah(m.total_cost)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
-      {/* Modal Add / Edit Tenant */}
+      {/* Modal Input Meteran */}
       {modalOpen && (
         <div 
           className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-hidden"
           onClick={() => setModalOpen(false)}
         >
           <div 
-            className="bg-white rounded-2xl sm:rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
+            className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 flex flex-col max-h-[85vh] sm:max-h-[88vh] overflow-hidden my-auto animate-in fade-in zoom-in-95 duration-150"
             onClick={(e) => e.stopPropagation()}
           >
             {/* 1. STICKY HEADER */}
             <div className="px-5 py-3.5 sm:px-6 sm:py-4 border-b border-slate-100 flex items-center justify-between shrink-0 bg-white z-10">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
-                  <Users className="w-4 h-4" />
+                  <Gauge className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="text-base sm:text-lg font-bold text-slate-800 leading-tight">
-                    {formData.id ? 'Edit Data Penghuni' : 'Tambah Penghuni Baru'}
-                  </h3>
-                  <p className="text-[11px] text-slate-400">Data identitas, kontak, dan foto penyewa</p>
+                  <h3 className="text-base font-bold text-slate-800 leading-tight">Catat Angka Meteran</h3>
+                  <p className="text-[11px] text-slate-400">Pencatatan pemakaian listrik & air kamar</p>
                 </div>
               </div>
 
@@ -440,133 +277,122 @@ export default function TenantsPage() {
             </div>
 
             {/* 2. SCROLLABLE FORM BODY */}
-            <form id="tenantForm" onSubmit={handleSave} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
+            <form id="utilityForm" onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-3.5">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap *</label>
-                <input
-                  type="text"
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Pilih Kamar</label>
+                <select
                   required
-                  placeholder="Nama sesuai KTP"
-                  value={formData.full_name}
-                  onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600"
+                  value={formData.room_id}
+                  onChange={(e) => setFormData({ ...formData, room_id: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-emerald-600 bg-white"
+                >
+                  <option value="">-- Pilih Kamar --</option>
+                  {rooms.map(r => (
+                    <option key={r.id} value={r.id}>{r.room_code} - {r.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Jenis Utilitas</label>
+                  <select
+                    value={formData.utility_type}
+                    onChange={(e) => {
+                      const type = e.target.value as 'ELECTRICITY' | 'WATER';
+                      setFormData({ 
+                        ...formData, 
+                        utility_type: type,
+                        rate_per_unit: type === 'ELECTRICITY' ? 1500 : 5000
+                      });
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
+                  >
+                    <option value="ELECTRICITY">⚡ Listrik (kWh)</option>
+                    <option value="WATER">💧 Air (m³)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Tanggal</label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.reading_date}
+                    onChange={(e) => setFormData({ ...formData, reading_date: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Meter Awal (Lalu)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={formData.previous_meter}
+                    onChange={(e) => setFormData({ ...formData, previous_meter: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">Meter Akhir (Saat Ini)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    required
+                    value={formData.current_meter}
+                    onChange={(e) => setFormData({ ...formData, current_meter: Number(e.target.value) })}
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-emerald-600"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-slate-600 mb-1 block">Tarif per Satuan (Rp)</label>
+                <input
+                  type="number"
+                  min="0"
+                  required
+                  value={formData.rate_per_unit}
+                  onChange={(e) => setFormData({ ...formData, rate_per_unit: Number(e.target.value) })}
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs focus:outline-emerald-600"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Nomor WhatsApp *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="081234567890"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
-                  />
+              {/* Kalkulasi Ringkasan */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span>Pemakaian:</span>
+                  <strong>{Math.max(0, formData.current_meter - formData.previous_meter)} {formData.utility_type === 'ELECTRICITY' ? 'kWh' : 'm³'}</strong>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">NIK / KTP</label>
-                  <input
-                    type="text"
-                    placeholder="16 digit NIK"
-                    value={formData.id_card_number}
-                    onChange={(e) => setFormData({ ...formData, id_card_number: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
-                  />
+                <div className="flex justify-between text-emerald-800 font-bold">
+                  <span>Estimasi Biaya:</span>
+                  <span>{formatRupiah(Math.max(0, formData.current_meter - formData.previous_meter) * formData.rate_per_unit)}</span>
                 </div>
-              </div>
-
-              <ImageUpload
-                label="Foto Profil Penghuni"
-                value={formData.photo_url}
-                onChange={(url) => setFormData({ ...formData, photo_url: url })}
-                folder="tenants"
-                aspectRatio="square"
-              />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Pekerjaan</label>
-                  <input
-                    type="text"
-                    placeholder="Mahasiswa / Karyawan"
-                    value={formData.occupation}
-                    onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                    className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Status Sewa</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    className="w-full px-3 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600 bg-white"
-                  >
-                    <option value="ACTIVE">Aktif Menyewa</option>
-                    <option value="INACTIVE">Non-Aktif / Alumni</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Alamat Asal KTP</label>
-                <textarea
-                  rows={2}
-                  placeholder="Kota / Daerah asal"
-                  value={formData.origin_address}
-                  onChange={(e) => setFormData({ ...formData, origin_address: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
-                ></textarea>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Keterangan / Catatan Tambahan</label>
-                <textarea
-                  rows={2}
-                  placeholder="Misal: Bawa kendaraan motor, bayar tiap tanggal 1"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs focus:outline-emerald-600"
-                ></textarea>
               </div>
             </form>
 
             {/* 3. STICKY FOOTER */}
             <div className="px-5 py-3 sm:px-6 sm:py-3.5 border-t border-slate-100 flex items-center justify-between shrink-0 bg-slate-50/90 backdrop-blur-sm z-10">
-              {formData.id ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const t = tenants.find(item => item.id === formData.id);
-                    if (t) {
-                      setModalOpen(false);
-                      handleDelete(t);
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition active:scale-95 border border-rose-200/60"
-                >
-                  <Trash2 className="w-3.5 h-3.5" /> Hapus
-                </button>
-              ) : <div></div>}
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
-                >
-                  Batal
-                </button>
-                <button
-                  type="submit"
-                  form="tenantForm"
-                  disabled={saving}
-                  className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
-                >
-                  <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Penghuni'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-xs sm:text-sm font-semibold hover:bg-white transition"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                form="utilityForm"
+                disabled={saving}
+                className="flex items-center gap-2 px-6 py-2 rounded-xl bg-[#064e3b] hover:bg-[#065f46] text-white text-xs sm:text-sm font-bold shadow-md transition disabled:opacity-50 active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4" /> {saving ? 'Menyimpan...' : 'Simpan Meteran'}
+              </button>
             </div>
           </div>
         </div>
